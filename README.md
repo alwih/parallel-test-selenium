@@ -8,7 +8,10 @@ Each test thread gets its own WebDriver through a `ThreadLocal`, so Chrome, Fire
 
 ```
 parallel-test-selenium/
-├── pom.xml                                # Maven build: Selenium 4.24, TestNG 7.10, Java 21
+├── .mvn/wrapper/
+│   └── maven-wrapper.properties           # Maven version used by ./mvnw (3.10.0)
+├── mvnw, mvnw.cmd                         # Maven wrapper scripts (macOS/Linux, Windows)
+├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Java 17
 ├── testng.xml                             # Suite: 9 tests (3 browsers × 3 sites) run in parallel
 └── src/test/java/
     ├── runner/
@@ -19,26 +22,25 @@ parallel-test-selenium/
 
 ## Prerequisites
 
-- **JDK 21 or later** (the build compiles for Java 21)
-- **Maven 3.6.3+** (required by the compiler and Surefire plugins)
-- **Google Chrome, Firefox and Microsoft Edge** installed. Selenium Manager, part of Selenium 4, downloads the matching drivers on the first run
+- **JDK 17 or later** (the build compiles for Java 17)
+- **No Maven install needed**: the Maven wrapper (`./mvnw`) downloads Maven 3.10.0 on its first run
+- **Google Chrome, Firefox and Microsoft Edge**. Selenium Manager, part of Selenium 4, downloads the matching drivers, and also downloads a browser that isn't installed into `~/.cache/selenium` (Firefox and Edge together take about 1.5 GB)
 - **Git** and an **internet connection** (the tests open live websites)
 
 ## Setup Instructions
 
-### 1. Install a JDK and Maven
+### 1. Install a JDK
 
 On macOS with Homebrew:
 
 ```bash
-brew install --cask temurin@21
-brew install maven
+brew install --cask temurin@17
 ```
 
-Check that Maven runs on JDK 21 or later:
+Check that Java 17 or later is the active version:
 
 ```bash
-mvn -v
+java -version
 ```
 
 ### 2. Clone the Repository
@@ -50,19 +52,21 @@ cd parallel-test-selenium
 
 ### 3. Install Dependencies
 
-Maven downloads Selenium and TestNG on the first build:
+The wrapper downloads Maven, then Maven downloads Selenium and TestNG:
 
 ```bash
-mvn test-compile
+./mvnw test-compile
 ```
+
+On Windows, use `mvnw.cmd` instead of `./mvnw`.
 
 ## Running the Tests
 
 ```bash
-mvn test
+./mvnw test
 ```
 
-Maven Surefire runs the suite in [testng.xml](testng.xml). It uses `parallel="tests"` with `thread-count="9"`, so every `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side.
+Maven Surefire runs the suite in [testng.xml](testng.xml). It uses `parallel="tests"` with `thread-count="9"`, so every `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side. A run takes under half a minute once the browsers and drivers are downloaded.
 
 ## What Gets Tested
 
@@ -74,6 +78,8 @@ Each site is opened in Chrome, Firefox and Edge (9 tests), and the page title mu
 | `launchBitbucket` | https://bitbucket.org | `Bitbucket \| Git solution for teams using Jira` |
 | `launchTokopedia` | https://www.tokopedia.com | `Situs Jual Beli Online Terlengkap, Mudah & Aman \| Tokopedia` |
 
+The Bitbucket check currently fails in all three browsers: the site's title is now `Bitbucket Home Page`.
+
 ## Modifying Test Data
 
 - **Browser and site combinations** live in [testng.xml](testng.xml). Each `<test>` block sets a `browser` parameter and includes one test method. Add or remove blocks to change the combinations, and keep `thread-count` equal to the number of blocks to run them all at once.
@@ -82,18 +88,20 @@ Each site is opened in Chrome, Firefox and Edge (9 tests), and the page title mu
 
 ## Troubleshooting
 
-**`Fatal error compiling: error: invalid target release: 21`?**
-- Maven is running on a JDK older than 21. Check with `mvn -v`, then install JDK 21 or later and point `JAVA_HOME` at it.
+**`error: release version 17 not supported`?**
+- Maven is running on a JDK older than 17. Check with `./mvnw -v`, then install JDK 17 or later and point `JAVA_HOME` at it.
 
-**The Firefox or Edge tests fail to start?**
-- That browser isn't installed. Install it, or remove its `<test>` blocks from `testng.xml`.
+**`NoSuchDriverException: Unable to obtain: geckodriver` (or `msedgedriver`)?**
+- Selenium Manager couldn't download the browser or its driver. Check the internet connection, or install Firefox or Edge yourself.
+
+**Warning `Unable to find an exact match for CDP version ...`?**
+- The installed Chrome is newer than the Selenium release. These tests don't use Chrome DevTools, so it's harmless.
 
 **A title check fails?**
 - These are live third-party sites, and their titles change. Open the site, copy the current title and update the expected value in `TestRunner.java`.
 
 ## Next Steps
 
-- Build with Java 17 and add the Maven wrapper
 - Make the per-thread driver setup safer and add a headless mode
 - Read run settings from a properties file, environment variables and `-D` options
 - Move to Cucumber scenarios on TestNG, running in parallel
@@ -109,4 +117,6 @@ Each site is opened in Chrome, Firefox and Edge (9 tests), and the page title mu
 - [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/)
 - [TestNG Documentation](https://testng.org/) (see the section on parallel running)
 - [Maven Surefire with TestNG](https://maven.apache.org/surefire/maven-surefire-plugin/examples/testng.html)
-- [Java `ThreadLocal`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ThreadLocal.html)
+- [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
+- [Setting `--release` in the Maven Compiler Plugin](https://maven.apache.org/plugins/maven-compiler-plugin/examples/set-compiler-release.html)
+- [Java `ThreadLocal`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ThreadLocal.html)
