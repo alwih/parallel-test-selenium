@@ -53,9 +53,10 @@ public class WebDriverManager {
 
     // create public method to quit driver
     public static void quitBrowser() {
-        if (tlDriver != null) {
-            tlDriver.get().quit();
+        WebDriver driver = tlDriver.get();
+        if (driver != null) {
             tlDriver.remove();
+            driver.quit();
         }
     }
 

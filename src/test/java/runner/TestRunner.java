@@ -38,7 +38,7 @@ public class TestRunner {
         Assert.assertEquals(driver.getTitle(), "Situs Jual Beli Online Terlengkap, Mudah & Aman | Tokopedia");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDown() {
         WebDriverManager.quitBrowser();
     }
