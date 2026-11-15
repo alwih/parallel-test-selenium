@@ -1,5 +1,6 @@
 package io.github.alwih.selenium.driver;
 
+import io.github.alwih.selenium.config.Config;
 import java.util.List;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
@@ -18,7 +19,7 @@ final class DriverFactory {
     }
 
     static WebDriver create(String browser) {
-        List<String> args = Boolean.getBoolean("headless") ? List.of("--headless") : List.of();
+        List<String> args = Boolean.parseBoolean(Config.get("headless")) ? List.of("--headless") : List.of();
         WebDriver driver = switch (browser) {
             case "chrome" -> new ChromeDriver(new ChromeOptions().addArguments(args));
             case "firefox" -> new FirefoxDriver(new FirefoxOptions().addArguments(args));

@@ -12,13 +12,19 @@ parallel-test-selenium/
 │   └── maven-wrapper.properties           # Maven version used by ./mvnw (3.10.0)
 ├── mvnw, mvnw.cmd                         # Maven wrapper scripts (macOS/Linux, Windows)
 ├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Java 17
-├── testng.xml                             # Suite: 9 tests (3 browsers × 3 sites) run in parallel
-└── src/test/java/io/github/alwih/selenium/
-    ├── driver/
-    │   ├── DriverFactory.java             # Creates Chrome, Firefox or Edge (headless or not, 1366×768)
-    │   └── DriverManager.java             # One WebDriver per thread (ThreadLocal): start, get, quit
-    └── runner/
-        └── TestRunner.java                # Opens a site and checks its page title
+├── testng.xml                             # Suite: config unit tests + 9 browser tests (3 browsers × 3 sites) in parallel
+└── src/test/
+    ├── resources/
+    │   └── config.properties              # Default run settings (headless)
+    └── java/io/github/alwih/selenium/
+        ├── config/
+        │   ├── Config.java                # Reads a setting: -D option, then env var, then config.properties
+        │   └── ConfigTest.java            # Unit tests for that order (no browser)
+        ├── driver/
+        │   ├── DriverFactory.java         # Creates Chrome, Firefox or Edge (headless or not, 1366×768)
+        │   └── DriverManager.java         # One WebDriver per thread (ThreadLocal): start, get, quit
+        └── runner/
+            └── TestRunner.java            # Opens a site and checks its page title
 ```
 
 ## Prerequisites
@@ -67,19 +73,31 @@ On Windows, use `mvnw.cmd` instead of `./mvnw`.
 ./mvnw test
 ```
 
-Maven Surefire runs the suite in [testng.xml](testng.xml). It uses `parallel="tests"` with `thread-count="9"`, so every `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side. A run takes under half a minute once the browsers and drivers are downloaded.
+Maven Surefire runs the suite in [testng.xml](testng.xml). The first block runs the settings unit tests, which need no browser and finish in milliseconds. The suite uses `parallel="tests"` with `thread-count="9"`, so every browser `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side. A run takes under half a minute once the browsers and drivers are downloaded.
 
-To run without opening browser windows:
+To run without opening browser windows, use either the `-D` option or the environment variable:
 
 ```bash
 ./mvnw test -Dheadless=true
+```
+
+```bash
+HEADLESS=true ./mvnw test
+```
+
+To run only the settings unit tests:
+
+```bash
+./mvnw test -Dtest=ConfigTest
 ```
 
 Every browser opens at 1366×768, headless or not, so pages lay out the same way in both modes. Teardown always runs and quits only a browser that actually started, so a browser that fails to start shows its real error.
 
 ## What Gets Tested
 
-Each site is opened in Chrome, Firefox and Edge (9 tests), and the page title must match exactly:
+**Run settings** (`ConfigTest`, 6 unit tests, no browser): a `-D` option beats an environment variable, which beats `config.properties`; `base.url` is looked up as the env var `BASE_URL`; a missing setting fails with its name; and `config.properties` provides `headless`.
+
+**Page titles**: each site is opened in Chrome, Firefox and Edge (9 tests), and the page title must match exactly:
 
 | Test method | Site | Expected title |
 |---|---|---|
@@ -91,9 +109,13 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 
 ## Modifying Test Data
 
-- **Browser and site combinations** live in [testng.xml](testng.xml). Each `<test>` block sets a `browser` parameter and includes one test method. Add or remove blocks to change the combinations, and keep `thread-count` equal to the number of blocks to run them all at once.
+- **Browser and site combinations** live in [testng.xml](testng.xml). Each `<test>` block sets a `browser` parameter and includes one test method. Add or remove blocks to change the combinations, and keep `thread-count` equal to the number of browser blocks to run them all at once (the unit-test block frees its thread within milliseconds).
 - **Browser values**: `chrome`, `firefox` and `edge`. Any other value stops that test with `Unsupported browser`. Safari isn't supported: it runs one session at a time and has no headless mode.
-- **Headless mode**: add `-Dheadless=true` to the Maven command (default: browsers open in a window).
+- **Run settings** live in [config.properties](src/test/resources/config.properties). Each one can be overridden without editing the file, and the first match wins:
+  1. a `-D` option on the Maven command, e.g. `-Dheadless=true`
+  2. an environment variable named after the key in upper case, with dots as underscores (`headless` → `HEADLESS`, `base.url` → `BASE_URL`)
+  3. the value in `config.properties`
+- **Headless mode**: the `headless` setting, `false` by default (browsers open in a window). Any value other than `true` means a visible window, so a typo runs headed.
 - **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
 - **URLs and expected titles** live in [TestRunner.java](src/test/java/io/github/alwih/selenium/runner/TestRunner.java).
 
@@ -108,6 +130,9 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 **Warning `Unable to find an exact match for CDP version ...`?**
 - The installed Chrome is newer than the Selenium release. These tests don't use Chrome DevTools, so it's harmless.
 
+**`IllegalStateException: Missing setting 'x'`?**
+- The code asked for a setting that isn't in `config.properties` and wasn't passed as `-Dx=...` or an environment variable. Add it to the file or pass it on the command line.
+
 **`IllegalArgumentException: Unsupported browser 'x'`?**
 - A `browser` parameter in `testng.xml` isn't `chrome`, `firefox` or `edge`. Fix the value.
 
@@ -119,7 +144,6 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 
 ## Next Steps
 
-- Read run settings from a properties file, environment variables and `-D` options
 - Move to Cucumber scenarios on TestNG, running in parallel
 - Test the SauceDemo shop: login, product list and sorting, cart and checkout
 - Run every scenario on Chrome, Firefox and Edge at the same time
@@ -137,3 +161,4 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 - [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
 - [Setting `--release` in the Maven Compiler Plugin](https://maven.apache.org/plugins/maven-compiler-plugin/examples/set-compiler-release.html)
 - [Java `ThreadLocal`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ThreadLocal.html)
+- [Java `Properties`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Properties.html) (the `config.properties` file format)

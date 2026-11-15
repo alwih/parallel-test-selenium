@@ -1,6 +1,12 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Suite" parallel="tests" thread-count="9" verbose="3">
 
+    <test name="Unit">
+        <classes>
+            <class name="io.github.alwih.selenium.config.ConfigTest"/>
+        </classes>
+    </test>
+
     <test name="ChromeTest1">
         <parameter name="browser" value="chrome"/>
         <classes>
