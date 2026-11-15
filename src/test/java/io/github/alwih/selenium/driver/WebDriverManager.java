@@ -1,4 +1,4 @@
-package webdriver;
+package io.github.alwih.selenium.driver;
 
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;

@@ -4,7 +4,7 @@
     <test name="ChromeTest1">
         <parameter name="browser" value="chrome"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchGoogle"/>
                 </methods>
@@ -15,7 +15,7 @@
     <test name="ChromeTest2">
         <parameter name="browser" value="chrome"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchBitbucket"/>
                 </methods>
@@ -26,7 +26,7 @@
     <test name="ChromeTest3">
         <parameter name="browser" value="chrome"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchTokopedia"/>
                 </methods>
@@ -37,7 +37,7 @@
     <test name="FirefoxTest1">
         <parameter name="browser" value="firefox"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchGoogle"/>
                 </methods>
@@ -48,7 +48,7 @@
     <test name="FirefoxTest2">
         <parameter name="browser" value="firefox"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchBitbucket"/>
                 </methods>
@@ -59,7 +59,7 @@
     <test name="FirefoxTest3">
         <parameter name="browser" value="firefox"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchTokopedia"/>
                 </methods>
@@ -70,7 +70,7 @@
     <test name="EdgeTest1">
         <parameter name="browser" value="edge"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchGoogle"/>
                 </methods>
@@ -81,7 +81,7 @@
     <test name="EdgeTest2">
         <parameter name="browser" value="edge"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchBitbucket"/>
                 </methods>
@@ -92,7 +92,7 @@
     <test name="EdgeTest3">
         <parameter name="browser" value="edge"/>
         <classes>
-            <class name="runner.TestRunner">
+            <class name="io.github.alwih.selenium.runner.TestRunner">
                 <methods>
                     <include name="launchTokopedia"/>
                 </methods>
