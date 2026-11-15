@@ -1,12 +1,12 @@
-package runner;
+package io.github.alwih.selenium.runner;
 
+import io.github.alwih.selenium.driver.DriverManager;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
-import webdriver.WebDriverManager;
 
 public class TestRunner {
     private WebDriver driver;
@@ -14,7 +14,8 @@ public class TestRunner {
     @BeforeClass
     @Parameters("browser")
     public void setUp(String browser) {
-        driver = WebDriverManager.getInstance(browser).getDriver();
+        DriverManager.start(browser);
+        driver = DriverManager.get();
     }
 
     @Test
@@ -38,8 +39,8 @@ public class TestRunner {
         Assert.assertEquals(driver.getTitle(), "Situs Jual Beli Online Terlengkap, Mudah & Aman | Tokopedia");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDown() {
-        WebDriverManager.quitBrowser();
+        DriverManager.quit();
     }
 }

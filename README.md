@@ -2,7 +2,7 @@
 
 A Selenium WebDriver project in Java that runs several browsers at the same time with **TestNG**, built with **Maven**.
 
-Each test thread gets its own WebDriver through a `ThreadLocal`, so Chrome, Firefox and Edge sessions run side by side without sharing state. The suite opens three public websites in each browser and checks their page titles: nine browser sessions in parallel.
+Each test thread gets its own browser from `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, so Chrome, Firefox and Edge sessions run side by side without sharing state. The suite opens three public websites in each browser and checks their page titles: nine browser sessions in parallel, with or without a visible window.
 
 ## Project Structure
 
@@ -13,11 +13,12 @@ parallel-test-selenium/
 ├── mvnw, mvnw.cmd                         # Maven wrapper scripts (macOS/Linux, Windows)
 ├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Java 17
 ├── testng.xml                             # Suite: 9 tests (3 browsers × 3 sites) run in parallel
-└── src/test/java/
-    ├── runner/
-    │   └── TestRunner.java                # Opens a site and checks its page title
-    └── webdriver/
-        └── WebDriverManager.java          # One WebDriver per thread (ThreadLocal) behind a singleton
+└── src/test/java/io/github/alwih/selenium/
+    ├── driver/
+    │   ├── DriverFactory.java             # Creates Chrome, Firefox or Edge (headless or not, 1366×768)
+    │   └── DriverManager.java             # One WebDriver per thread (ThreadLocal): start, get, quit
+    └── runner/
+        └── TestRunner.java                # Opens a site and checks its page title
 ```
 
 ## Prerequisites
@@ -68,6 +69,14 @@ On Windows, use `mvnw.cmd` instead of `./mvnw`.
 
 Maven Surefire runs the suite in [testng.xml](testng.xml). It uses `parallel="tests"` with `thread-count="9"`, so every `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side. A run takes under half a minute once the browsers and drivers are downloaded.
 
+To run without opening browser windows:
+
+```bash
+./mvnw test -Dheadless=true
+```
+
+Every browser opens at 1366×768, headless or not, so pages lay out the same way in both modes. Teardown always runs and quits only a browser that actually started, so a browser that fails to start shows its real error.
+
 ## What Gets Tested
 
 Each site is opened in Chrome, Firefox and Edge (9 tests), and the page title must match exactly:
@@ -83,8 +92,10 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 ## Modifying Test Data
 
 - **Browser and site combinations** live in [testng.xml](testng.xml). Each `<test>` block sets a `browser` parameter and includes one test method. Add or remove blocks to change the combinations, and keep `thread-count` equal to the number of blocks to run them all at once.
-- **Browser values**: `chrome`, `firefox`, `edge` and `safari`. Any other value falls back to Chrome. Safari runs only one session at a time, so it isn't in the parallel suite.
-- **URLs and expected titles** live in [TestRunner.java](src/test/java/runner/TestRunner.java).
+- **Browser values**: `chrome`, `firefox` and `edge`. Any other value stops that test with `Unsupported browser`. Safari isn't supported: it runs one session at a time and has no headless mode.
+- **Headless mode**: add `-Dheadless=true` to the Maven command (default: browsers open in a window).
+- **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
+- **URLs and expected titles** live in [TestRunner.java](src/test/java/io/github/alwih/selenium/runner/TestRunner.java).
 
 ## Troubleshooting
 
@@ -97,12 +108,17 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 **Warning `Unable to find an exact match for CDP version ...`?**
 - The installed Chrome is newer than the Selenium release. These tests don't use Chrome DevTools, so it's harmless.
 
+**`IllegalArgumentException: Unsupported browser 'x'`?**
+- A `browser` parameter in `testng.xml` isn't `chrome`, `firefox` or `edge`. Fix the value.
+
 **A title check fails?**
 - These are live third-party sites, and their titles change. Open the site, copy the current title and update the expected value in `TestRunner.java`.
 
+**Different title results with `-Dheadless=true`?**
+- Some sites serve headless Chrome and Edge a different page. Tokopedia shows a bot check titled `www.tokopedia.com`, so that check fails headless, and Bitbucket still shows its old title, so that check passes. Firefox gets the same pages headless and headed.
+
 ## Next Steps
 
-- Make the per-thread driver setup safer and add a headless mode
 - Read run settings from a properties file, environment variables and `-D` options
 - Move to Cucumber scenarios on TestNG, running in parallel
 - Test the SauceDemo shop: login, product list and sorting, cart and checkout
@@ -115,6 +131,7 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 
 - [Selenium Documentation](https://www.selenium.dev/documentation/)
 - [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/)
+- [Selenium browser options](https://www.selenium.dev/documentation/webdriver/browsers/) (arguments such as `--headless`)
 - [TestNG Documentation](https://testng.org/) (see the section on parallel running)
 - [Maven Surefire with TestNG](https://maven.apache.org/surefire/maven-surefire-plugin/examples/testng.html)
 - [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
