@@ -1,8 +1,8 @@
 # Parallel Selenium Testing
 
-A Selenium WebDriver project in Java that runs several browsers at the same time with **TestNG**, built with **Maven**.
+A UI test project in Java that runs **Cucumber** scenarios in parallel on **TestNG** with Selenium WebDriver, built with **Maven**. The site under test is [SauceDemo](https://www.saucedemo.com), a demo shop made for test automation.
 
-Each test thread gets its own browser from `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, so Chrome, Firefox and Edge sessions run side by side without sharing state. The suite opens three public websites in each browser and checks their page titles: nine browser sessions in parallel, with or without a visible window.
+Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. So far there is one smoke scenario, which opens the SauceDemo login page. It runs in Chrome, Firefox or Edge, with or without a visible window.
 
 ## Project Structure
 
@@ -11,11 +11,14 @@ parallel-test-selenium/
 ├── .mvn/wrapper/
 │   └── maven-wrapper.properties           # Maven version used by ./mvnw (3.10.0)
 ├── mvnw, mvnw.cmd                         # Maven wrapper scripts (macOS/Linux, Windows)
-├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Java 17
-├── testng.xml                             # Suite: config unit tests + 9 browser tests (3 browsers × 3 sites) in parallel
+├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Cucumber 8.0, Java 17
+├── testng.xml                             # Suite: config unit tests, then the Cucumber scenarios (4 at a time)
 └── src/test/
     ├── resources/
-    │   └── config.properties              # Default run settings (headless)
+    │   ├── config.properties              # Default run settings (headless, browser, base.url)
+    │   ├── cucumber.properties            # Cucumber defaults (summary output, no publish banner)
+    │   └── features/
+    │       └── login.feature              # Login page scenario
     └── java/io/github/alwih/selenium/
         ├── config/
         │   ├── Config.java                # Reads a setting: -D option, then env var, then config.properties
@@ -23,16 +26,20 @@ parallel-test-selenium/
         ├── driver/
         │   ├── DriverFactory.java         # Creates Chrome, Firefox or Edge (headless or not, 1366×768)
         │   └── DriverManager.java         # One WebDriver per thread (ThreadLocal): start, get, quit
-        └── runner/
-            └── TestRunner.java            # Opens a site and checks its page title
+        ├── hooks/
+        │   └── BrowserHooks.java          # Opens a browser before each scenario, quits it after
+        ├── runner/
+        │   └── CucumberRunner.java        # TestNG entry point: hands scenarios out to parallel threads
+        └── steps/
+            └── LoginSteps.java            # Step definitions for login.feature
 ```
 
 ## Prerequisites
 
 - **JDK 17 or later** (the build compiles for Java 17)
 - **No Maven install needed**: the Maven wrapper (`./mvnw`) downloads Maven 3.10.0 on its first run
-- **Google Chrome, Firefox and Microsoft Edge**. Selenium Manager, part of Selenium 4, downloads the matching drivers, and also downloads a browser that isn't installed into `~/.cache/selenium` (Firefox and Edge together take about 1.5 GB)
-- **Git** and an **internet connection** (the tests open live websites)
+- **Google Chrome**, the default browser. Firefox and Microsoft Edge are only needed for `-Dbrowser=firefox` or `-Dbrowser=edge`. Selenium Manager, part of Selenium 4, downloads the matching drivers, and also downloads a browser that isn't installed into `~/.cache/selenium` (Firefox and Edge together take about 1.5 GB)
+- **Git** and an **internet connection** (the scenarios open saucedemo.com)
 
 ## Setup Instructions
 
@@ -59,7 +66,7 @@ cd parallel-test-selenium
 
 ### 3. Install Dependencies
 
-The wrapper downloads Maven, then Maven downloads Selenium and TestNG:
+The wrapper downloads Maven, then Maven downloads Selenium, TestNG and Cucumber:
 
 ```bash
 ./mvnw test-compile
@@ -73,51 +80,67 @@ On Windows, use `mvnw.cmd` instead of `./mvnw`.
 ./mvnw test
 ```
 
-Maven Surefire runs the suite in [testng.xml](testng.xml). The first block runs the settings unit tests, which need no browser and finish in milliseconds. The suite uses `parallel="tests"` with `thread-count="9"`, so every browser `<test>` block runs in its own thread with its own browser, all at the same time. Each thread prints its name and the page title, which shows the sessions running side by side. A run takes under half a minute once the browsers and drivers are downloaded.
+Maven Surefire runs the suite in [testng.xml](testng.xml). It runs the settings unit tests first (they need no browser), then `CucumberRunner`, which runs every scenario in [src/test/resources/features](src/test/resources/features). The runner hands scenarios to TestNG through a parallel DataProvider, so they run on separate threads, up to 4 at once (`data-provider-thread-count` in `testng.xml`). Each scenario opens its own browser before it starts and quits it when it ends, even when the scenario fails. At the end, Cucumber prints a summary: scenario and step counts (the before and after hooks count as steps), and the feature line and error of each failed scenario. A run takes a few seconds once the browser and driver are downloaded.
 
-To run without opening browser windows, use either the `-D` option or the environment variable:
+To run only the scenarios with a given tag, pass a [tag expression](https://cucumber.io/docs/cucumber/api/#tag-expressions):
+
+```bash
+./mvnw test -Dcucumber.filter.tags="@smoke"
+```
+
+To change how many scenarios run at once:
+
+```bash
+./mvnw test -Ddataproviderthreadcount=2
+```
+
+To choose the browser, or to run without opening browser windows, use a `-D` option or the matching environment variable:
+
+```bash
+./mvnw test -Dbrowser=firefox
+```
 
 ```bash
 ./mvnw test -Dheadless=true
 ```
 
 ```bash
-HEADLESS=true ./mvnw test
+BROWSER=edge HEADLESS=true ./mvnw test
 ```
 
-To run only the settings unit tests:
+To run only the settings unit tests, or only the scenarios:
 
 ```bash
 ./mvnw test -Dtest=ConfigTest
 ```
 
-Every browser opens at 1366×768, headless or not, so pages lay out the same way in both modes. Teardown always runs and quits only a browser that actually started, so a browser that fails to start shows its real error.
+```bash
+./mvnw test -Dtest=CucumberRunner
+```
+
+`-Dtest` bypasses `testng.xml`, so its limit of 4 scenarios at once doesn't apply. Add `-Ddataproviderthreadcount=4` to keep it.
+
+Every browser opens at 1366×768, headless or not, so pages lay out the same way in both modes. The after-scenario hook always runs and quits only a browser that actually started, so a browser that fails to start shows its real error.
 
 ## What Gets Tested
 
 **Run settings** (`ConfigTest`, 6 unit tests, no browser): a `-D` option beats an environment variable, which beats `config.properties`; `base.url` is looked up as the env var `BASE_URL`; a missing setting fails with its name; and `config.properties` provides `headless`.
 
-**Page titles**: each site is opened in Chrome, Firefox and Edge (9 tests), and the page title must match exactly:
-
-| Test method | Site | Expected title |
-|---|---|---|
-| `launchGoogle` | https://google.com | `Google` |
-| `launchBitbucket` | https://bitbucket.org | `Bitbucket \| Git solution for teams using Jira` |
-| `launchTokopedia` | https://www.tokopedia.com | `Situs Jual Beli Online Terlengkap, Mudah & Aman \| Tokopedia` |
-
-The Bitbucket check currently fails in all three browsers: the site's title is now `Bitbucket Home Page`.
+**Login page** ([login.feature](src/test/resources/features/login.feature), tagged `@login`; the scenario is `@smoke @positive`): opening SauceDemo lands on the login page (path `/`) and shows the username field, the password field and the login button.
 
 ## Modifying Test Data
 
-- **Browser and site combinations** live in [testng.xml](testng.xml). Each `<test>` block sets a `browser` parameter and includes one test method. Add or remove blocks to change the combinations, and keep `thread-count` equal to the number of browser blocks to run them all at once (the unit-test block frees its thread within milliseconds).
-- **Browser values**: `chrome`, `firefox` and `edge`. Any other value stops that test with `Unsupported browser`. Safari isn't supported: it runs one session at a time and has no headless mode.
+- **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`) and each scenario with its intent (`@positive`, `@negative` or `@edge`).
 - **Run settings** live in [config.properties](src/test/resources/config.properties). Each one can be overridden without editing the file, and the first match wins:
-  1. a `-D` option on the Maven command, e.g. `-Dheadless=true`
-  2. an environment variable named after the key in upper case, with dots as underscores (`headless` → `HEADLESS`, `base.url` → `BASE_URL`)
+  1. a `-D` option on the Maven command, e.g. `-Dbrowser=firefox`
+  2. an environment variable named after the key in upper case, with dots as underscores (`browser` → `BROWSER`, `base.url` → `BASE_URL`)
   3. the value in `config.properties`
+- **Browser**: the `browser` setting, `chrome` by default; `firefox` and `edge` also work. Any other value fails every scenario with `Unsupported browser`. Safari isn't supported: it runs one session at a time and has no headless mode.
+- **Site under test**: the `base.url` setting, `https://www.saucedemo.com`.
 - **Headless mode**: the `headless` setting, `false` by default (browsers open in a window). Any value other than `true` means a visible window, so a typo runs headed.
+- **Scenarios at once**: `data-provider-thread-count` in [testng.xml](testng.xml). `-Ddataproviderthreadcount=N` overrides it for one run.
 - **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
-- **URLs and expected titles** live in [TestRunner.java](src/test/java/io/github/alwih/selenium/runner/TestRunner.java).
+- **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties).
 
 ## Troubleshooting
 
@@ -125,7 +148,7 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 - Maven is running on a JDK older than 17. Check with `./mvnw -v`, then install JDK 17 or later and point `JAVA_HOME` at it.
 
 **`NoSuchDriverException: Unable to obtain: geckodriver` (or `msedgedriver`)?**
-- Selenium Manager couldn't download the browser or its driver. Check the internet connection, or install Firefox or Edge yourself.
+- Selenium Manager couldn't download Firefox or Edge, or its driver. Check the internet connection, or install the browser yourself.
 
 **Warning `Unable to find an exact match for CDP version ...`?**
 - The installed Chrome is newer than the Selenium release. These tests don't use Chrome DevTools, so it's harmless.
@@ -134,17 +157,16 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 - The code asked for a setting that isn't in `config.properties` and wasn't passed as `-Dx=...` or an environment variable. Add it to the file or pass it on the command line.
 
 **`IllegalArgumentException: Unsupported browser 'x'`?**
-- A `browser` parameter in `testng.xml` isn't `chrome`, `firefox` or `edge`. Fix the value.
+- The `browser` setting (from `-Dbrowser`, `BROWSER` or `config.properties`) isn't `chrome`, `firefox` or `edge`. Fix the value.
 
-**A title check fails?**
-- These are live third-party sites, and their titles change. Open the site, copy the current title and update the expected value in `TestRunner.java`.
+**`TimeoutException` waiting for `[data-test='username']`?**
+- The login form didn't appear within 10 seconds. Check the internet connection, and check that `base.url` (or `BASE_URL`) points at SauceDemo.
 
-**Different title results with `-Dheadless=true`?**
-- Some sites serve headless Chrome and Edge a different page. Tokopedia shows a bot check titled `www.tokopedia.com`, so that check fails headless, and Bitbucket still shows its old title, so that check passes. Firefox gets the same pages headless and headed.
+**A deleted feature file or step class still runs?**
+- Its compiled copy is still in `target/test-classes`. Run `./mvnw clean test`.
 
 ## Next Steps
 
-- Move to Cucumber scenarios on TestNG, running in parallel
 - Test the SauceDemo shop: login, product list and sorting, cart and checkout
 - Run every scenario on Chrome, Firefox and Edge at the same time
 - Allure reports with a screenshot of each failure
@@ -156,7 +178,11 @@ The Bitbucket check currently fails in all three browsers: the site's title is n
 - [Selenium Documentation](https://www.selenium.dev/documentation/)
 - [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/)
 - [Selenium browser options](https://www.selenium.dev/documentation/webdriver/browsers/) (arguments such as `--headless`)
-- [TestNG Documentation](https://testng.org/) (see the section on parallel running)
+- [Selenium waits](https://www.selenium.dev/documentation/webdriver/waits/) (explicit waits)
+- [Cucumber Documentation](https://cucumber.io/docs/cucumber/)
+- [Gherkin reference](https://cucumber.io/docs/gherkin/reference/)
+- [Cucumber with TestNG](https://github.com/cucumber/cucumber-jvm/tree/main/cucumber-testng) (running scenarios in parallel)
+- [TestNG Documentation](https://testng.org/) (see the sections on parallel running and data providers)
 - [Maven Surefire with TestNG](https://maven.apache.org/surefire/maven-surefire-plugin/examples/testng.html)
 - [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
 - [Setting `--release` in the Maven Compiler Plugin](https://maven.apache.org/plugins/maven-compiler-plugin/examples/set-compiler-release.html)
