@@ -9,6 +9,7 @@ public class LoginPage extends BasePage {
     private static final By USERNAME = By.cssSelector("[data-test='username']");
     private static final By PASSWORD = By.cssSelector("[data-test='password']");
     private static final By LOGIN_BUTTON = By.cssSelector("[data-test='login-button']");
+    private static final By ERROR = By.cssSelector("[data-test='error']");
 
     public LoginPage(WebDriver driver) {
         super(driver);
@@ -30,5 +31,9 @@ public class LoginPage extends BasePage {
         visible(USERNAME).sendKeys(username);
         visible(PASSWORD).sendKeys(password);
         visible(LOGIN_BUTTON).click();
+    }
+
+    public String error() {
+        return visible(ERROR).getText();
     }
 }
