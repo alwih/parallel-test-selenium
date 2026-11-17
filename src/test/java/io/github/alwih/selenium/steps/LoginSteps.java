@@ -25,7 +25,7 @@ public class LoginSteps {
         new LoginPage(DriverManager.get()).logIn(username, password);
     }
 
-    @Then("I should stay on the login page")
+    @Then("I should stay/be on the login page")
     public void shouldStayOnLoginPage() {
         LoginPage loginPage = new LoginPage(DriverManager.get());
         Assert.assertEquals(loginPage.currentPath(), "/", "Login page path");

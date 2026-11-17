@@ -30,3 +30,18 @@ Feature: Login
     When I log in as " standard_user "
     Then I should stay on the login page
     And the login error should be "Epic sadface: Username and password do not match any user in this service"
+
+  @positive
+  Scenario: Logging out ends the session
+    When I log in as "standard_user"
+    And I log out
+    Then I should be on the login page
+    When I open the products page directly
+    Then I should be on the login page
+    And the login error should be "Epic sadface: You can only access '/inventory.html' when you are logged in."
+
+  @edge
+  Scenario: The products page needs a session
+    When I open the products page directly
+    Then I should be on the login page
+    And the login error should be "Epic sadface: You can only access '/inventory.html' when you are logged in."
