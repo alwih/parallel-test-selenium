@@ -2,7 +2,7 @@
 
 A UI test project in Java that runs **Cucumber** scenarios in parallel on **TestNG** with Selenium WebDriver, built with **Maven**. The site under test is [SauceDemo](https://www.saucedemo.com), a demo shop made for test automation.
 
-Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. So far there is one smoke scenario, which opens the SauceDemo login page. It runs in Chrome, Firefox or Edge, with or without a visible window.
+Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login: a successful login, rejected logins, logout, and a page that needs a session. They run in Chrome, Firefox or Edge, with or without a visible window.
 
 ## Project Structure
 
@@ -15,10 +15,10 @@ parallel-test-selenium/
 ├── testng.xml                             # Suite: config unit tests, then the Cucumber scenarios (4 at a time)
 └── src/test/
     ├── resources/
-    │   ├── config.properties              # Default run settings (headless, browser, base.url)
+    │   ├── config.properties              # Default run settings (browser, headless, site, wait timeout, password)
     │   ├── cucumber.properties            # Cucumber defaults (summary output, no publish banner)
     │   └── features/
-    │       └── login.feature              # Login page scenario
+    │       └── login.feature              # Login, rejected logins, logout, session check
     └── java/io/github/alwih/selenium/
         ├── config/
         │   ├── Config.java                # Reads a setting: -D option, then env var, then config.properties
@@ -28,10 +28,15 @@ parallel-test-selenium/
         │   └── DriverManager.java         # One WebDriver per thread (ThreadLocal): start, get, quit
         ├── hooks/
         │   └── BrowserHooks.java          # Opens a browser before each scenario, quits it after
+        ├── pages/
+        │   ├── BasePage.java              # Explicit waits (visible, clickable) and the current URL path
+        │   ├── LoginPage.java             # Login form: open, log in, read the error
+        │   └── InventoryPage.java         # Products page: title, open directly, log out from the menu
         ├── runner/
         │   └── CucumberRunner.java        # TestNG entry point: hands scenarios out to parallel threads
         └── steps/
-            └── LoginSteps.java            # Step definitions for login.feature
+            ├── LoginSteps.java            # Login page steps
+            └── InventorySteps.java        # Products page steps
 ```
 
 ## Prerequisites
@@ -126,11 +131,19 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 
 **Run settings** (`ConfigTest`, 6 unit tests, no browser): a `-D` option beats an environment variable, which beats `config.properties`; `base.url` is looked up as the env var `BASE_URL`; a missing setting fails with its name; and `config.properties` provides `headless`.
 
-**Login page** ([login.feature](src/test/resources/features/login.feature), tagged `@login`; the scenario is `@smoke @positive`): opening SauceDemo lands on the login page (path `/`) and shows the username field, the password field and the login button.
+**Login** ([login.feature](src/test/resources/features/login.feature), tagged `@login`, 9 scenarios). Every scenario starts on the login page and checks the URL path before what's on the page:
+
+- `@smoke @positive`: `standard_user` logs in and lands on the products page (`/inventory.html`, title "Products").
+- `@negative`, one Scenario Outline with 5 rows: a locked-out user, a wrong password, an unknown user, an empty username and an empty password. Each stays on the login page with the form visible and shows its own error, e.g. "Epic sadface: Sorry, this user has been locked out.".
+- `@edge`: a username with spaces around it is rejected; the site doesn't trim it.
+- `@positive`: logging out from the menu returns to the login page, and opening the products page afterwards sends you back to login with "You can only access '/inventory.html' when you are logged in.".
+- `@edge`: opening the products page without logging in shows the same redirect and error.
 
 ## Modifying Test Data
 
 - **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`) and each scenario with its intent (`@positive`, `@negative` or `@edge`).
+- **Rejected logins** are rows in the `Examples` table of [login.feature](src/test/resources/features/login.feature): add a row with the username, password, expected error and a short note. Cucumber trims spaces around table cells, which is why the username-with-spaces case is its own scenario.
+- **Locators** live in the page objects in the [pages](src/test/java/io/github/alwih/selenium/pages) package, as `data-test` attributes where the site has them. Steps never find elements themselves.
 - **Run settings** live in [config.properties](src/test/resources/config.properties). Each one can be overridden without editing the file, and the first match wins:
   1. a `-D` option on the Maven command, e.g. `-Dbrowser=firefox`
   2. an environment variable named after the key in upper case, with dots as underscores (`browser` → `BROWSER`, `base.url` → `BASE_URL`)
@@ -138,6 +151,8 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - **Browser**: the `browser` setting, `chrome` by default; `firefox` and `edge` also work. Any other value fails every scenario with `Unsupported browser`. Safari isn't supported: it runs one session at a time and has no headless mode.
 - **Site under test**: the `base.url` setting, `https://www.saucedemo.com`.
 - **Headless mode**: the `headless` setting, `false` by default (browsers open in a window). Any value other than `true` means a visible window, so a typo runs headed.
+- **Wait timeout**: the `timeout.seconds` setting, `10` by default. Page objects wait up to this long for an element before failing.
+- **Password**: the `sauce.password` setting, used by the "I log in as" step. It is kept in `config.properties` because it isn't a secret: SauceDemo prints it on its login page for every demo user.
 - **Scenarios at once**: `data-provider-thread-count` in [testng.xml](testng.xml). `-Ddataproviderthreadcount=N` overrides it for one run.
 - **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
 - **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties).
@@ -160,14 +175,14 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - The `browser` setting (from `-Dbrowser`, `BROWSER` or `config.properties`) isn't `chrome`, `firefox` or `edge`. Fix the value.
 
 **`TimeoutException` waiting for `[data-test='username']`?**
-- The login form didn't appear within 10 seconds. Check the internet connection, and check that `base.url` (or `BASE_URL`) points at SauceDemo.
+- The login form didn't appear within `timeout.seconds` (10 by default). Check the internet connection, and check that `base.url` (or `BASE_URL`) points at SauceDemo. On a slow connection, raise it for one run with `-Dtimeout.seconds=20`.
 
 **A deleted feature file or step class still runs?**
 - Its compiled copy is still in `target/test-classes`. Run `./mvnw clean test`.
 
 ## Next Steps
 
-- Test the SauceDemo shop: login, product list and sorting, cart and checkout
+- Test the rest of the SauceDemo shop: product list and sorting, cart and checkout
 - Run every scenario on Chrome, Firefox and Edge at the same time
 - Allure reports with a screenshot of each failure
 - Run the browsers on a Selenium Grid in Docker
@@ -180,7 +195,8 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - [Selenium browser options](https://www.selenium.dev/documentation/webdriver/browsers/) (arguments such as `--headless`)
 - [Selenium waits](https://www.selenium.dev/documentation/webdriver/waits/) (explicit waits)
 - [Cucumber Documentation](https://cucumber.io/docs/cucumber/)
-- [Gherkin reference](https://cucumber.io/docs/gherkin/reference/)
+- [Gherkin reference](https://cucumber.io/docs/gherkin/reference/) (Background, Scenario Outline and Examples)
+- [Page object models](https://www.selenium.dev/documentation/test_practices/encouraged/page_object_models/)
 - [Cucumber with TestNG](https://github.com/cucumber/cucumber-jvm/tree/main/cucumber-testng) (running scenarios in parallel)
 - [TestNG Documentation](https://testng.org/) (see the sections on parallel running and data providers)
 - [Maven Surefire with TestNG](https://maven.apache.org/surefire/maven-surefire-plugin/examples/testng.html)
