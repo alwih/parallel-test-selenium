@@ -1,10 +1,10 @@
 package io.github.alwih.selenium.steps;
 
 import io.cucumber.java.en.Given;
-import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+import io.github.alwih.selenium.config.Config;
 import io.github.alwih.selenium.driver.DriverManager;
 import io.github.alwih.selenium.pages.LoginPage;
-import org.testng.Assert;
 
 public class LoginSteps {
 
@@ -13,10 +13,8 @@ public class LoginSteps {
         new LoginPage(DriverManager.get()).open();
     }
 
-    @Then("I should see the login form")
-    public void shouldSeeLoginForm() {
-        LoginPage loginPage = new LoginPage(DriverManager.get());
-        Assert.assertEquals(loginPage.currentPath(), "/", "Login page path");
-        loginPage.waitForForm();
+    @When("I log in as {string}")
+    public void logInAs(String username) {
+        new LoginPage(DriverManager.get()).logIn(username, Config.get("sauce.password"));
     }
 }

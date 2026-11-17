@@ -25,4 +25,10 @@ public class LoginPage extends BasePage {
         visible(LOGIN_BUTTON);
         return this;
     }
+
+    public void logIn(String username, String password) {
+        visible(USERNAME).sendKeys(username);
+        visible(PASSWORD).sendKeys(password);
+        visible(LOGIN_BUTTON).click();
+    }
 }
