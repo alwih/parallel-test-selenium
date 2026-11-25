@@ -7,6 +7,8 @@ import io.github.alwih.selenium.config.Config;
 import io.github.alwih.selenium.driver.DriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.testng.ITestResult;
+import org.testng.Reporter;
 
 public class BrowserHooks {
 
@@ -15,7 +17,14 @@ public class BrowserHooks {
     @Before
     public void openBrowser() {
         start = System.currentTimeMillis();
-        DriverManager.start(Config.get("browser"));
+        DriverManager.start(browser());
+    }
+
+    // Each <test> in testng-cross-browser.xml names its browser; the default suite has no parameter and uses Config
+    private String browser() {
+        ITestResult result = Reporter.getCurrentTestResult();
+        String fromSuite = result == null ? null : result.getTestContext().getCurrentXmlTest().getParameter("browser");
+        return fromSuite != null ? fromSuite : Config.get("browser");
     }
 
     @After
