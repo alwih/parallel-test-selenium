@@ -21,3 +21,16 @@ Feature: Inventory
       | Name (Z to A)       | name from Z to A       |
       | Price (low to high) | price from low to high |
       | Price (high to low) | price from high to low |
+
+  @positive
+  Scenario: A product opens with the name and price shown in the list
+    Then opening the first product should show its name and price from the list
+    When I go back to the products
+    Then I should see the products page
+    And I should see a product list with a price for each product
+
+  @edge
+  Scenario: The same products are listed after opening one and going back
+    The order is not asserted: SauceDemo resets the sort when the list is shown again.
+
+    Then opening a product after sorting by "Price (high to low)" and going back should list the same products

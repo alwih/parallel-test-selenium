@@ -11,8 +11,9 @@ import org.openqa.selenium.support.ui.Select;
 public class InventoryPage extends BasePage {
 
     private static final By TITLE = By.cssSelector("[data-test='title']");
-    private static final By ITEM_NAME = By.cssSelector("[data-test='inventory-item-name']");
-    private static final By ITEM_PRICE = By.cssSelector("[data-test='inventory-item-price']");
+    // scoped to the list: the product page reuses these data-test names and shows briefly while the list is still absent
+    private static final By ITEM_NAME = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-name']");
+    private static final By ITEM_PRICE = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-price']");
     private static final By SORT = By.cssSelector("[data-test='product-sort-container']");
     private static final By MENU_BUTTON = By.id("react-burger-menu-btn");
     private static final By LOGOUT_LINK = By.cssSelector("[data-test='logout-sidebar-link']");
@@ -39,6 +40,11 @@ public class InventoryPage extends BasePage {
 
     public void sortBy(String optionText) {
         new Select(visible(SORT)).selectByVisibleText(optionText);
+    }
+
+    public ProductPage openFirstProduct() {
+        all(ITEM_NAME).get(0).click();
+        return new ProductPage(driver);
     }
 
     // the menu slides in, so the link is not clickable right after the menu button

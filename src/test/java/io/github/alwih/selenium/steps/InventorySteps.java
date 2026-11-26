@@ -4,6 +4,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.github.alwih.selenium.driver.DriverManager;
 import io.github.alwih.selenium.pages.InventoryPage;
+import io.github.alwih.selenium.pages.ProductPage;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -19,6 +20,11 @@ public class InventorySteps {
     @When("I log out")
     public void logOut() {
         new InventoryPage(DriverManager.get()).logOut();
+    }
+
+    @When("I go back to the products")
+    public void goBackToProducts() {
+        new ProductPage(DriverManager.get()).backToProducts();
     }
 
     @Then("I should see the products page")
@@ -64,6 +70,28 @@ public class InventorySteps {
             inventoryPage.sortBy(option);
             assertOrder(inventoryPage.productPrices(), expected, "Product prices sorted by " + option);
         }
+    }
+
+    // the list is captured before the click, and steps keep no state, so capture, open and compare share one step
+    @Then("opening the first product should show its name and price from the list")
+    public void openingFirstProductShouldShowListedNameAndPrice() {
+        InventoryPage inventoryPage = new InventoryPage(DriverManager.get());
+        String name = inventoryPage.productNames().get(0);
+        BigDecimal price = inventoryPage.productPrices().get(0);
+        ProductPage productPage = inventoryPage.openFirstProduct();
+        Assert.assertEquals(productPage.name(), name, "Product name on the product page");
+        Assert.assertEquals(productPage.price(), price, "Product price on the product page for " + name);
+        Assert.assertEquals(productPage.currentPath(), "/inventory-item.html", "Product page path");
+    }
+
+    // same reason as above; names are compared as sets of products because the sort is not kept (see the feature)
+    @Then("opening a product after sorting by {string} and going back should list the same products")
+    public void openingProductAndGoingBackShouldListSameProducts(String option) {
+        InventoryPage inventoryPage = new InventoryPage(DriverManager.get());
+        List<String> before = inventoryPage.productNames();
+        inventoryPage.sortBy(option);
+        List<String> after = inventoryPage.openFirstProduct().backToProducts().productNames();
+        assertOrder(sorted(after, true), sorted(before, true), "Products after going back, in any order");
     }
 
     private static <T> void assertOrder(List<T> actual, List<T> expected, String what) {
