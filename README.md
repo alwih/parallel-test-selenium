@@ -2,7 +2,7 @@
 
 A UI test project in Java that runs **Cucumber** scenarios in parallel on **TestNG** with Selenium WebDriver, built with **Maven**. The site under test is [SauceDemo](https://www.saucedemo.com), a demo shop made for test automation.
 
-Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login: a successful login, rejected logins, logout, and a page that needs a session. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time.
+Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login (a successful login, rejected logins, logout, and a page that needs a session) and the product list: names and prices, sorting, and the product page. Two known issues of the `problem_user` demo account are recorded as scenarios that fail on purpose and are left out of the default run. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time.
 
 ## Project Structure
 
@@ -17,9 +17,11 @@ parallel-test-selenium/
 └── src/test/
     ├── resources/
     │   ├── config.properties              # Default run settings (browser, headless, site, wait timeout, password)
-    │   ├── cucumber.properties            # Cucumber defaults (summary output, no publish banner)
+    │   ├── cucumber.properties            # Cucumber defaults (summary output, no publish banner, tags left out of a default run)
     │   └── features/
-    │       └── login.feature              # Login, rejected logins, logout, session check
+    │       ├── login.feature              # Login, rejected logins, logout, session check
+    │       ├── inventory.feature          # Product list, sorting, product page (standard_user)
+    │       └── inventory_problem_user.feature  # Known issues of problem_user (left out of a default run)
     └── java/io/github/alwih/selenium/
         ├── config/
         │   ├── Config.java                # Reads a setting: -D option, then env var, then config.properties
@@ -30,14 +32,15 @@ parallel-test-selenium/
         ├── hooks/
         │   └── BrowserHooks.java          # Opens the browser the suite names before each scenario, logs one line, quits it after
         ├── pages/
-        │   ├── BasePage.java              # Explicit waits (visible, clickable) and the current URL path
+        │   ├── BasePage.java              # Explicit waits (one element, all elements, clickable) and the current URL path
         │   ├── LoginPage.java             # Login form: open, log in, read the error
-        │   └── InventoryPage.java         # Products page: title, open directly, log out from the menu
+        │   ├── InventoryPage.java         # Products page: title, product names, prices and images, sort, open a product, log out
+        │   └── ProductPage.java           # Product page: name, price, back to the list
         ├── runner/
         │   └── CucumberRunner.java        # TestNG entry point: hands scenarios out to parallel threads
         └── steps/
             ├── LoginSteps.java            # Login page steps
-            └── InventorySteps.java        # Products page steps
+            └── InventorySteps.java        # Products page, product list and product page steps
 ```
 
 ## Prerequisites
@@ -86,7 +89,7 @@ On Windows, use `mvnw.cmd` instead of `./mvnw`.
 ./mvnw test
 ```
 
-Maven Surefire runs the suite in [testng.xml](testng.xml). It runs the settings unit tests first (they need no browser), then `CucumberRunner`, which runs every scenario in [src/test/resources/features](src/test/resources/features). The runner hands scenarios to TestNG through a parallel DataProvider, so they run on separate threads, up to 4 at once (`data-provider-thread-count` in `testng.xml`). Each scenario opens its own browser before it starts and quits it when it ends, even when the scenario fails. At the end, Cucumber prints a summary: scenario and step counts (the before and after hooks count as steps), and the feature line and error of each failed scenario. A run takes a few seconds once the browser and driver are downloaded.
+Maven Surefire runs the suite in [testng.xml](testng.xml). It runs the settings unit tests first (they need no browser), then `CucumberRunner`, which runs every scenario in [src/test/resources/features](src/test/resources/features) except the ones tagged `@known_issue` or `@wip` (see Tags below). The runner hands scenarios to TestNG through a parallel DataProvider, so they run on separate threads, up to 4 at once (`data-provider-thread-count` in `testng.xml`). Each scenario opens its own browser before it starts and quits it when it ends, even when the scenario fails. At the end, Cucumber prints a summary: scenario and step counts (the before and after hooks count as steps), and the feature line and error of each failed scenario. A run takes a few seconds once the browser and driver are downloaded.
 
 After each scenario the hook prints one line, before it quits the browser:
 
@@ -96,11 +99,39 @@ After each scenario the hook prints one line, before it quits the browser:
 
 It has the browser name reported by the running browser, the result, the scenario name, the thread, the WebDriver session id and the scenario's duration. Every scenario has its own session id, which is how you can check that no two scenarios shared a browser. A thread name proves nothing about that: TestNG reuses thread names across browsers.
 
-To run only the scenarios with a given tag, pass a [tag expression](https://cucumber.io/docs/cucumber/api/#tag-expressions):
+### Tags
+
+Every feature has an area tag (`@login`, `@inventory`) and every scenario one intent tag (`@positive`, `@negative` or `@edge`). `@smoke` marks the main happy path of an area. Two more tags mark scenarios that are not ready for a normal run:
+
+- `@known_issue`: the site behaves wrongly. The scenario asserts the correct behavior, so it fails, and its description says what the site does instead.
+- `@wip`: a scenario still being written.
+
+[cucumber.properties](src/test/resources/cucumber.properties) sets `cucumber.filter.tags=not @known_issue and not @wip`, so a normal run skips both. To run only the scenarios with a given [tag expression](https://cucumber.io/docs/cucumber/api/#tag-expressions), pass it with `-D`:
 
 ```bash
 ./mvnw test -Dcucumber.filter.tags="@smoke"
 ```
+
+`-Dcucumber.filter.tags` **replaces** the expression in the file, it doesn't add to it. So `-Dcucumber.filter.tags=@inventory` also runs the known-issue scenarios, and they fail. To run an area and keep the exclusions, repeat them:
+
+```bash
+./mvnw test -Dcucumber.filter.tags="@inventory and not @known_issue and not @wip"
+```
+
+To run the known issues, which fail on purpose:
+
+```bash
+./mvnw test -Dcucumber.filter.tags="@known_issue"
+```
+
+Both fail every time, in Chrome and in Firefox, with these messages:
+
+```
+Product prices sorted by Price (low to high), expected [7.99, 9.99, 15.99, 15.99, 29.99, 49.99] but found [29.99, 9.99, 15.99, 49.99, 7.99, 15.99]: Lists differ at element [0]: 7.99 != 29.99 expected [7.99] but found [29.99]
+Distinct images among the products, found [https://www.saucedemo.com/assets/sl-404-Cq1a9k9X.jpg, ... six times the same URL] expected [6] but found [1]
+```
+
+### Other options
 
 To change how many scenarios run at once:
 
@@ -136,7 +167,7 @@ To run only the settings unit tests, or only the scenarios:
 
 ### All three browsers at once
 
-`-Dsuite` picks the TestNG suite file (`testng.xml` by default). [testng-cross-browser.xml](testng-cross-browser.xml) has one TestNG `<test>` per browser (Chrome, Firefox, Edge), each with a `browser` parameter and only `CucumberRunner`, and runs the three at the same time. Every browser runs all the scenarios, so 9 scenarios become 27:
+`-Dsuite` picks the TestNG suite file (`testng.xml` by default). [testng-cross-browser.xml](testng-cross-browser.xml) has one TestNG `<test>` per browser (Chrome, Firefox, Edge), each with a `browser` parameter and only `CucumberRunner`, and runs the three at the same time. Every browser runs all the default scenarios, so 16 scenarios become 48:
 
 ```bash
 ./mvnw test -Dsuite=testng-cross-browser.xml -Dheadless=true
@@ -148,7 +179,7 @@ To run only the settings unit tests, or only the scenarios:
 - **Use `-Dheadless=true`** unless you want to watch six windows open.
 - `ConfigTest` is only in `testng.xml`, so this suite runs scenarios only.
 
-Times on one laptop, headless, with browsers and drivers already downloaded. Each is the median of 3 runs (range in brackets) of Maven's `Time elapsed`, which includes the unit tests:
+Times on one laptop, headless, with browsers and drivers already downloaded, measured when the suite had only the 9 login scenarios. Each is the median of 3 runs (range in brackets) of Maven's `Time elapsed`, which includes the unit tests:
 
 | Run | Scenarios | Time |
 |---|---|---|
@@ -172,10 +203,27 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - `@positive`: logging out from the menu returns to the login page, and opening the products page afterwards sends you back to login with "You can only access '/inventory.html' when you are logged in.".
 - `@edge`: opening the products page without logging in shows the same redirect and error.
 
+**Product list** ([inventory.feature](src/test/resources/features/inventory.feature), tagged `@inventory`, 7 scenarios). Every scenario logs in as `standard_user` first:
+
+- `@smoke @positive`: the products page lists products, every product has a price, no name is blank and every price is above zero. The number of products isn't asserted, because the demo shop's catalog is data, not a rule.
+- `@positive`, one Scenario Outline with 4 rows: sorting by name from A to Z, name from Z to A, price from low to high and price from high to low. The test reads the list before sorting and sorts a copy itself to get the expected order. The A to Z row first sorts the other way, because A to Z is the site's default order. Price sorts compare prices, not names, because two products cost the same.
+- `@positive`: opening the first product shows the name and price the list showed, then "Back to products" returns to the products page with the list.
+- `@edge`: sort by price from high to low, open the first product and go back: the same products are listed as before. The order isn't asserted, because SauceDemo goes back to its default order when the list is shown again.
+
+**Known issues** ([inventory_problem_user.feature](src/test/resources/features/inventory_problem_user.feature), `@inventory`, 2 scenarios tagged `@known_issue @negative`, not part of a default run). Both log in as `problem_user` and assert the correct behavior, so they fail until the site is fixed:
+
+- Sorting by price reorders the products. Actual: no sort changes the list, and the sort dropdown goes back to "Name (A to Z)".
+- Every product shows its own image. Actual: all products show the same placeholder image.
+
+Opening a product as `problem_user` also misbehaves (often nothing happens, and sometimes another product opens), but that is random, so it isn't a scenario.
+
+**Counts.** A default run has 16 scenarios: 8 `@positive`, 5 `@negative` and 3 `@edge`, plus the 6 unit tests, 22 TestNG tests in all. The 2 known-issue scenarios come on top when asked for with `-Dcucumber.filter.tags=@known_issue`. With `-Dsuite=testng-cross-browser.xml` the 16 scenarios run in each of the 3 browsers, 48 in all.
+
 ## Modifying Test Data
 
-- **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`) and each scenario with its intent (`@positive`, `@negative` or `@edge`).
+- **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`, `@inventory`) and each scenario with its intent (`@positive`, `@negative` or `@edge`). To record a site bug, assert the correct behavior, add `@known_issue` and put what the site does instead in the scenario description.
 - **Rejected logins** are rows in the `Examples` table of [login.feature](src/test/resources/features/login.feature): add a row with the username, password, expected error and a short note. Cucumber trims spaces around table cells, which is why the username-with-spaces case is its own scenario.
+- **Sort options** are rows in the `Examples` table of [inventory.feature](src/test/resources/features/inventory.feature): the option text exactly as the dropdown shows it, and a note for the scenario title.
 - **Locators** live in the page objects in the [pages](src/test/java/io/github/alwih/selenium/pages) package, as `data-test` attributes where the site has them. Steps never find elements themselves.
 - **Run settings** live in [config.properties](src/test/resources/config.properties). Each one can be overridden without editing the file, and the first match wins:
   1. a `-D` option on the Maven command, e.g. `-Dbrowser=firefox`
@@ -189,7 +237,7 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - **Scenarios at once**: `data-provider-thread-count` in [testng.xml](testng.xml). `-Ddataproviderthreadcount=N` overrides it for one run. In [testng-cross-browser.xml](testng-cross-browser.xml) it is per browser.
 - **Which suite runs**: `-Dsuite=testng-cross-browser.xml` (default `testng.xml`), set by the `suite` property in [pom.xml](pom.xml).
 - **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
-- **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties).
+- **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties). The `cucumber.filter.tags` line there decides which tags a default run skips.
 
 ## Troubleshooting
 
@@ -217,12 +265,15 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 **`TimeoutException` waiting for `[data-test='username']`?**
 - The login form didn't appear within `timeout.seconds` (10 by default). Check the internet connection, and check that `base.url` (or `BASE_URL`) points at SauceDemo. On a slow connection, raise it for one run with `-Dtimeout.seconds=20`.
 
+**The logout scenario fails now and then, with `logout-sidebar-link ... to be clickable, but the element was not visible` or `Login page path expected [/] but found [/inventory.html]`?**
+- It has failed in a stretch of consecutive runs, while the products page stopped reacting to clicks for a while, and then passed again with no change. The cause isn't known; it looks like the site, not the test code. Retrying the clicks inside the scenario didn't help during such a stretch. Run it again a few minutes later.
+
 **A deleted feature file or step class still runs?**
 - Its compiled copy is still in `target/test-classes`. Run `./mvnw clean test`.
 
 ## Next Steps
 
-- Test the rest of the SauceDemo shop: product list and sorting, cart and checkout
+- Test the rest of the SauceDemo shop: cart and checkout
 - Allure reports with a screenshot of each failure
 - Run the browsers on a Selenium Grid in Docker
 - Run the tests in GitHub Actions on every pull request and every night

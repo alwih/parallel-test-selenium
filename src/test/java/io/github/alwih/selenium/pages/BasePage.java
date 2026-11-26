@@ -3,6 +3,7 @@ package io.github.alwih.selenium.pages;
 import io.github.alwih.selenium.config.Config;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -25,6 +26,10 @@ public abstract class BasePage {
 
     protected WebElement visible(By locator) {
         return wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
+    }
+
+    protected List<WebElement> all(By locator) {
+        return wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(locator));
     }
 
     protected WebElement clickable(By locator) {
