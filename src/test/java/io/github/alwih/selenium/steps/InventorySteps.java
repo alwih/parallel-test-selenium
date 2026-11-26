@@ -7,6 +7,7 @@ import io.github.alwih.selenium.pages.InventoryPage;
 import io.github.alwih.selenium.pages.ProductPage;
 import java.math.BigDecimal;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import org.testng.Assert;
 
@@ -92,6 +93,12 @@ public class InventorySteps {
         inventoryPage.sortBy(option);
         List<String> after = inventoryPage.openFirstProduct().backToProducts().productNames();
         assertOrder(sorted(after, true), sorted(before, true), "Products after going back, in any order");
+    }
+
+    @Then("every product should have its own image")
+    public void everyProductShouldHaveOwnImage() {
+        List<String> images = new InventoryPage(DriverManager.get()).productImages();
+        Assert.assertEquals(new HashSet<>(images).size(), images.size(), "Distinct images among the products, found " + images);
     }
 
     private static <T> void assertOrder(List<T> actual, List<T> expected, String what) {

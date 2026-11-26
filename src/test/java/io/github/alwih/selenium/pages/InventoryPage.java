@@ -14,6 +14,7 @@ public class InventoryPage extends BasePage {
     // scoped to the list: the product page reuses these data-test names and shows briefly while the list is still absent
     private static final By ITEM_NAME = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-name']");
     private static final By ITEM_PRICE = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-price']");
+    private static final By ITEM_IMAGE = By.cssSelector("[data-test='inventory-list'] [data-test$='-img']");
     private static final By SORT = By.cssSelector("[data-test='product-sort-container']");
     private static final By MENU_BUTTON = By.id("react-burger-menu-btn");
     private static final By LOGOUT_LINK = By.cssSelector("[data-test='logout-sidebar-link']");
@@ -36,6 +37,10 @@ public class InventoryPage extends BasePage {
 
     public List<BigDecimal> productPrices() {
         return all(ITEM_PRICE).stream().map(price -> new BigDecimal(price.getText().substring(1))).toList();
+    }
+
+    public List<String> productImages() {
+        return all(ITEM_IMAGE).stream().map(image -> image.getAttribute("src")).toList();
     }
 
     public void sortBy(String optionText) {
