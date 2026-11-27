@@ -2,7 +2,7 @@
 
 A UI test project in Java that runs **Cucumber** scenarios in parallel on **TestNG** with Selenium WebDriver, built with **Maven**. The site under test is [SauceDemo](https://www.saucedemo.com), a demo shop made for test automation.
 
-Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login (a successful login, rejected logins, logout, and a page that needs a session) and the product list: names and prices, sorting, and the product page. Two known issues of the `problem_user` demo account are recorded as scenarios that fail on purpose and are left out of the default run. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time.
+Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login (a successful login, rejected logins, logout, and a page that needs a session) the product list (names and prices, sorting, and the product page) and the cart (adding and removing products, keeping them across pages and reloads, and an empty cart). Two known issues of the `problem_user` demo account are recorded as scenarios that fail on purpose and are left out of the default run. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time.
 
 ## Project Structure
 
@@ -21,6 +21,7 @@ parallel-test-selenium/
     │   └── features/
     │       ├── login.feature              # Login, rejected logins, logout, session check
     │       ├── inventory.feature          # Product list, sorting, product page (standard_user)
+    │       ├── cart.feature               # Add and remove products, cart across pages, empty cart and reload
     │       └── inventory_problem_user.feature  # Known issues of problem_user (left out of a default run)
     └── java/io/github/alwih/selenium/
         ├── config/
@@ -32,15 +33,17 @@ parallel-test-selenium/
         ├── hooks/
         │   └── BrowserHooks.java          # Opens the browser the suite names before each scenario, logs one line, quits it after
         ├── pages/
-        │   ├── BasePage.java              # Explicit waits (one element, all elements, clickable) and the current URL path
+        │   ├── BasePage.java              # Explicit waits (one element, all elements, clickable), the current URL path, the cart badge, open the cart, reload
         │   ├── LoginPage.java             # Login form: open, log in, read the error
-        │   ├── InventoryPage.java         # Products page: title, product names, prices and images, sort, open a product, log out
-        │   └── ProductPage.java           # Product page: name, price, back to the list
+        │   ├── InventoryPage.java         # Products page: title, product names, prices and images, sort, add or remove a product, open a product, log out
+        │   ├── ProductPage.java           # Product page: name, price, add or remove, back to the list
+        │   └── CartPage.java              # Cart page: title, product names and prices, remove, continue shopping
         ├── runner/
         │   └── CucumberRunner.java        # TestNG entry point: hands scenarios out to parallel threads
         └── steps/
             ├── LoginSteps.java            # Login page steps
-            └── InventorySteps.java        # Products page, product list and product page steps
+            ├── InventorySteps.java        # Products page, product list and product page steps
+            └── CartSteps.java             # Cart steps; remembers what the scenario added to compare with the cart page
 ```
 
 ## Prerequisites
@@ -101,7 +104,7 @@ It has the browser name reported by the running browser, the result, the scenari
 
 ### Tags
 
-Every feature has an area tag (`@login`, `@inventory`) and every scenario one intent tag (`@positive`, `@negative` or `@edge`). `@smoke` marks the main happy path of an area. Two more tags mark scenarios that are not ready for a normal run:
+Every feature has an area tag (`@login`, `@inventory`, `@cart`) and every scenario one intent tag (`@positive`, `@negative` or `@edge`). `@smoke` marks the main happy path of an area. Two more tags mark scenarios that are not ready for a normal run:
 
 - `@known_issue`: the site behaves wrongly. The scenario asserts the correct behavior, so it fails, and its description says what the site does instead.
 - `@wip`: a scenario still being written.
@@ -167,7 +170,7 @@ To run only the settings unit tests, or only the scenarios:
 
 ### All three browsers at once
 
-`-Dsuite` picks the TestNG suite file (`testng.xml` by default). [testng-cross-browser.xml](testng-cross-browser.xml) has one TestNG `<test>` per browser (Chrome, Firefox, Edge), each with a `browser` parameter and only `CucumberRunner`, and runs the three at the same time. Every browser runs all the default scenarios, so 16 scenarios become 48:
+`-Dsuite` picks the TestNG suite file (`testng.xml` by default). [testng-cross-browser.xml](testng-cross-browser.xml) has one TestNG `<test>` per browser (Chrome, Firefox, Edge), each with a `browser` parameter and only `CucumberRunner`, and runs the three at the same time. Every browser runs all the default scenarios, so 29 scenarios become 87:
 
 ```bash
 ./mvnw test -Dsuite=testng-cross-browser.xml -Dheadless=true
@@ -210,6 +213,17 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 - `@positive`: opening the first product shows the name and price the list showed, then "Back to products" returns to the products page with the list.
 - `@edge`: sort by price from high to low, open the first product and go back: the same products are listed as before. The order isn't asserted, because SauceDemo goes back to its default order when the list is shown again.
 
+**Cart** ([cart.feature](src/test/resources/features/cart.feature), tagged `@cart`, 13 scenarios). Every scenario logs in as `standard_user` first. The test remembers which products it added, with the price the list showed, and compares them with the cart page, in the order they were added:
+
+- `@smoke @positive`: adding the first 2 products from the list shows the badge "2", and the cart page lists exactly those products with those prices.
+- `@positive`, one Scenario Outline with 2 rows: adding a product from the product list or from its own page puts it in the cart.
+- `@positive`, one Scenario Outline with 2 rows: after adding 2 products, removing one from the product list or from its own page leaves the other one in the cart and the badge at "1".
+- `@positive`: removing a product on the cart page drops it from the cart and the badge.
+- `@positive`: the cart keeps its products after opening a product and going back, and after "Continue Shopping".
+- `@positive`: a product in the cart shows "Remove" instead of "Add to cart" on its own page.
+- `@edge`: a new cart is empty (no badge, no products), and so is a cart after its last product is removed.
+- `@edge`, 2 scenarios: the cart keeps its products and badge after reloading the products page or the cart page.
+
 **Known issues** ([inventory_problem_user.feature](src/test/resources/features/inventory_problem_user.feature), `@inventory`, 2 scenarios tagged `@known_issue @negative`, not part of a default run). Both log in as `problem_user` and assert the correct behavior, so they fail until the site is fixed:
 
 - Sorting by price reorders the products. Actual: no sort changes the list, and the sort dropdown goes back to "Name (A to Z)".
@@ -217,11 +231,11 @@ Every browser opens at 1366×768, headless or not, so pages lay out the same way
 
 Opening a product as `problem_user` also misbehaves (often nothing happens, and sometimes another product opens), but that is random, so it isn't a scenario.
 
-**Counts.** A default run has 16 scenarios: 8 `@positive`, 5 `@negative` and 3 `@edge`, plus the 6 unit tests, 22 TestNG tests in all. The 2 known-issue scenarios come on top when asked for with `-Dcucumber.filter.tags=@known_issue`. With `-Dsuite=testng-cross-browser.xml` the 16 scenarios run in each of the 3 browsers, 48 in all.
+**Counts.** A default run has 29 scenarios: 17 `@positive`, 5 `@negative` and 7 `@edge`, plus the 6 unit tests, 35 TestNG tests in all. The 2 known-issue scenarios come on top when asked for with `-Dcucumber.filter.tags=@known_issue`. With `-Dsuite=testng-cross-browser.xml` the 29 scenarios run in each of the 3 browsers, 87 in all.
 
 ## Modifying Test Data
 
-- **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`, `@inventory`) and each scenario with its intent (`@positive`, `@negative` or `@edge`). To record a site bug, assert the correct behavior, add `@known_issue` and put what the site does instead in the scenario description.
+- **Scenarios** are Gherkin `.feature` files in [src/test/resources/features](src/test/resources/features). Their steps are Java methods in the [steps](src/test/java/io/github/alwih/selenium/steps) package. A new `.feature` file in that folder runs without any other change. Tag each feature with its area (`@login`, `@inventory`, `@cart`) and each scenario with its intent (`@positive`, `@negative` or `@edge`). To record a site bug, assert the correct behavior, add `@known_issue` and put what the site does instead in the scenario description.
 - **Rejected logins** are rows in the `Examples` table of [login.feature](src/test/resources/features/login.feature): add a row with the username, password, expected error and a short note. Cucumber trims spaces around table cells, which is why the username-with-spaces case is its own scenario.
 - **Sort options** are rows in the `Examples` table of [inventory.feature](src/test/resources/features/inventory.feature): the option text exactly as the dropdown shows it, and a note for the scenario title.
 - **Locators** live in the page objects in the [pages](src/test/java/io/github/alwih/selenium/pages) package, as `data-test` attributes where the site has them. Steps never find elements themselves.
@@ -265,15 +279,15 @@ Opening a product as `problem_user` also misbehaves (often nothing happens, and 
 **`TimeoutException` waiting for `[data-test='username']`?**
 - The login form didn't appear within `timeout.seconds` (10 by default). Check the internet connection, and check that `base.url` (or `BASE_URL`) points at SauceDemo. On a slow connection, raise it for one run with `-Dtimeout.seconds=20`.
 
-**The logout scenario fails now and then, with `logout-sidebar-link ... to be clickable, but the element was not visible` or `Login page path expected [/] but found [/inventory.html]`?**
-- It has failed in a stretch of consecutive runs, while the products page stopped reacting to clicks for a while, and then passed again with no change. The cause isn't known; it looks like the site, not the test code. Retrying the clicks inside the scenario didn't help during such a stretch. Run it again a few minutes later.
+**A scenario fails on a click that did nothing, for example the logout scenario with `logout-sidebar-link ... to be clickable, but the element was not visible` or `Login page path expected [/] but found [/inventory.html]`, or a cart scenario with a wrong badge count?**
+- It has failed in a stretch of consecutive runs, while headless Chrome stopped reacting to clicks after login for several minutes (Firefox kept working at the same time), and then passed again with no change. The cause isn't known; it looks like the site, not the test code. Retrying the clicks inside the scenario didn't help during such a stretch. Run it again a few minutes later.
 
 **A deleted feature file or step class still runs?**
 - Its compiled copy is still in `target/test-classes`. Run `./mvnw clean test`.
 
 ## Next Steps
 
-- Test the rest of the SauceDemo shop: cart and checkout
+- Test the rest of the SauceDemo shop: checkout
 - Allure reports with a screenshot of each failure
 - Run the browsers on a Selenium Grid in Docker
 - Run the tests in GitHub Actions on every pull request and every night

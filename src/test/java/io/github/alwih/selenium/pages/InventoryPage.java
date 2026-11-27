@@ -15,6 +15,9 @@ public class InventoryPage extends BasePage {
     private static final By ITEM_NAME = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-name']");
     private static final By ITEM_PRICE = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item-price']");
     private static final By ITEM_IMAGE = By.cssSelector("[data-test='inventory-list'] [data-test$='-img']");
+    private static final By ITEM = By.cssSelector("[data-test='inventory-list'] [data-test='inventory-item']");
+    private static final By ADD_BUTTON = By.cssSelector("[data-test^='add-to-cart']");
+    private static final By REMOVE_BUTTON = By.cssSelector("[data-test^='remove']");
     private static final By SORT = By.cssSelector("[data-test='product-sort-container']");
     private static final By MENU_BUTTON = By.id("react-burger-menu-btn");
     private static final By LOGOUT_LINK = By.cssSelector("[data-test='logout-sidebar-link']");
@@ -45,6 +48,14 @@ public class InventoryPage extends BasePage {
 
     public void sortBy(String optionText) {
         new Select(visible(SORT)).selectByVisibleText(optionText);
+    }
+
+    public void addToCart(String name) {
+        itemNamed(ITEM, name).findElement(ADD_BUTTON).click();
+    }
+
+    public void removeFromCart(String name) {
+        itemNamed(ITEM, name).findElement(REMOVE_BUTTON).click();
     }
 
     public ProductPage openFirstProduct() {
