@@ -9,6 +9,8 @@ public class ProductPage extends BasePage {
     // the detail page reuses the list's data-test names, so scope them to the detail container
     private static final By NAME = By.cssSelector(".inventory_details_container [data-test='inventory-item-name']");
     private static final By PRICE = By.cssSelector(".inventory_details_container [data-test='inventory-item-price']");
+    private static final By ADD_BUTTON = By.cssSelector("[data-test='add-to-cart']");
+    private static final By REMOVE_BUTTON = By.cssSelector("[data-test='remove']");
     private static final By BACK_BUTTON = By.cssSelector("[data-test='back-to-products']");
 
     public ProductPage(WebDriver driver) {
@@ -21,6 +23,14 @@ public class ProductPage extends BasePage {
 
     public BigDecimal price() {
         return new BigDecimal(visible(PRICE).getText().substring(1));
+    }
+
+    public void addToCart() {
+        clickable(ADD_BUTTON).click();
+    }
+
+    public void removeFromCart() {
+        clickable(REMOVE_BUTTON).click();
     }
 
     public InventoryPage backToProducts() {
