@@ -39,6 +39,10 @@ public class CartPage extends BasePage {
         itemNamed(ITEM, name).findElement(REMOVE_BUTTON).click();
     }
 
+    public void continueShopping() {
+        clickable(CONTINUE_SHOPPING).click();
+    }
+
     // the URL changes to /cart.html before the cart renders and the products page lingers in the DOM, so wait for the cart's own button (an empty cart has no items to wait for)
     private void loaded() {
         visible(CONTINUE_SHOPPING);

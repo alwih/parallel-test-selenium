@@ -28,6 +28,11 @@ public class InventorySteps {
         new ProductPage(DriverManager.get()).backToProducts();
     }
 
+    @When("I open the first product")
+    public void openFirstProduct() {
+        new InventoryPage(DriverManager.get()).openFirstProduct();
+    }
+
     @Then("I should see the products page")
     public void shouldSeeProductsPage() {
         InventoryPage inventoryPage = new InventoryPage(DriverManager.get());

@@ -45,3 +45,27 @@ Feature: Cart
     And I remove the first added product from the cart page
     Then the cart badge should show 1
     And the cart should list the products I added with their prices
+
+  @positive
+  Scenario: The cart keeps its products after opening one and going back
+    When I add the first 2 products to the cart
+    And I open the first product
+    And I go back to the products
+    Then I should see the products page
+    And the cart badge should show 2
+    When I open the cart
+    Then the cart should list the products I added with their prices
+
+  @positive
+  Scenario: A product in the cart offers Remove on its product page
+    When I add the first 2 products to the cart
+    And I open the first product
+    Then the product page should offer to remove it from the cart
+
+  @positive
+  Scenario: The cart keeps its products when I continue shopping
+    When I add the first 2 products to the cart
+    And I open the cart
+    And I continue shopping
+    Then I should see the products page
+    And the cart badge should show 2

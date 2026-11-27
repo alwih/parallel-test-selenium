@@ -5,6 +5,7 @@ import io.cucumber.java.en.When;
 import io.github.alwih.selenium.driver.DriverManager;
 import io.github.alwih.selenium.pages.CartPage;
 import io.github.alwih.selenium.pages.InventoryPage;
+import io.github.alwih.selenium.pages.ProductPage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -62,9 +63,19 @@ public class CartSteps {
         new InventoryPage(DriverManager.get()).openCart();
     }
 
+    @When("I continue shopping")
+    public void continueShopping() {
+        new CartPage(DriverManager.get()).continueShopping();
+    }
+
     @Then("the cart badge should show {int}")
     public void cartBadgeShouldShow(int count) {
         Assert.assertEquals(new InventoryPage(DriverManager.get()).cartCount(), count, "Cart badge (0 means no badge)");
+    }
+
+    @Then("the product page should offer to remove it from the cart")
+    public void productPageShouldOfferRemove() {
+        Assert.assertTrue(new ProductPage(DriverManager.get()).inCart(), "Product page shows Remove for a product in the cart");
     }
 
     @Then("I should see the cart page")
