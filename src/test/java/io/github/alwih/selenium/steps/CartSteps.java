@@ -8,15 +8,17 @@ import io.github.alwih.selenium.pages.InventoryPage;
 import io.github.alwih.selenium.pages.ProductPage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.testng.Assert;
 
 public class CartSteps {
 
-    // name -> list price of what the scenario has added, in the order the cart shows them; Cucumber builds one instance per scenario
-    private final Map<String, BigDecimal> added = new LinkedHashMap<>();
+    private final Map<String, BigDecimal> added;
+
+    public CartSteps(ScenarioCart cart) {
+        this.added = cart.added;
+    }
 
     @When("I add the first {int} product(s) to the cart")
     public void addFirstProductsToCart(int count) {
