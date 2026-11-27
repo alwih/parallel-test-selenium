@@ -30,7 +30,9 @@ public class InventoryPage extends BasePage {
         driver.get(Config.get("base.url") + "/inventory.html");
     }
 
+    // the URL changes before the page renders and the previous page's title lingers (checkout pages share the data-test), so wait for the sort menu first
     public String title() {
+        visible(SORT);
         return visible(TITLE).getText();
     }
 
