@@ -49,3 +49,25 @@ Feature: Checkout
       | the first name is missing  |            | Lovelace  | 12345       | Error: First Name is required  |
       | the last name is missing   | Ada        |           | 12345       | Error: Last Name is required   |
       | the postal code is missing | Ada        | Lovelace  |             | Error: Postal Code is required |
+
+  @positive
+  Scenario: Cancelling on the information page returns to the cart with its products
+    When I add the first 2 products to the cart
+    And I open the cart
+    And I start the checkout
+    And I cancel on the information page
+    Then I should see the cart page
+    And the cart badge should show 2
+    And the cart should list the products I added with their prices
+
+  @positive
+  Scenario: Cancelling on the overview returns to the products page with the cart kept
+    When I add the first 2 products to the cart
+    And I open the cart
+    And I start the checkout
+    And I continue with first name "Ada", last name "Lovelace" and postal code "12345"
+    And I cancel on the overview
+    Then I should see the products page
+    And the cart badge should show 2
+    When I open the cart
+    Then the cart should list the products I added with their prices

@@ -32,6 +32,16 @@ public class CheckoutSteps {
         infoPage.continueToOverview();
     }
 
+    @When("I cancel on the information page")
+    public void cancelOnInformationPage() {
+        new CheckoutInfoPage(DriverManager.get()).cancel();
+    }
+
+    @When("I cancel on the overview")
+    public void cancelOnOverview() {
+        new CheckoutOverviewPage(DriverManager.get()).cancel();
+    }
+
     @When("I finish the order")
     public void finishOrder() {
         new CheckoutOverviewPage(DriverManager.get()).finish();

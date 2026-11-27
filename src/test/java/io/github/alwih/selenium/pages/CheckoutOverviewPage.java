@@ -54,6 +54,7 @@ public class CheckoutOverviewPage extends BasePage {
     }
 
     public InventoryPage cancel() {
+        loaded();
         clickable(CANCEL).click();
         return new InventoryPage(driver);
     }
