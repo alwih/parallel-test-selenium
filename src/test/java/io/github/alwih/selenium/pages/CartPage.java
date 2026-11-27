@@ -31,7 +31,7 @@ public class CartPage extends BasePage {
 
     public List<BigDecimal> itemPrices() {
         loaded();
-        return driver.findElements(ITEM_PRICE).stream().map(price -> new BigDecimal(price.getText().substring(1))).toList();
+        return driver.findElements(ITEM_PRICE).stream().map(price -> parsePrice(price.getText())).toList();
     }
 
     public void remove(String name) {

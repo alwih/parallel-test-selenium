@@ -39,7 +39,7 @@ public class InventoryPage extends BasePage {
     }
 
     public List<BigDecimal> productPrices() {
-        return all(ITEM_PRICE).stream().map(price -> new BigDecimal(price.getText().substring(1))).toList();
+        return all(ITEM_PRICE).stream().map(price -> parsePrice(price.getText())).toList();
     }
 
     public List<String> productImages() {
