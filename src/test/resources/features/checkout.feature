@@ -34,3 +34,18 @@ Feature: Checkout
     And the cart badge should show 0
     When I open the cart
     Then the cart should be empty
+
+  @negative
+  Scenario Outline: Checkout is rejected when <note>
+    When I add the first 1 product to the cart
+    And I open the cart
+    And I start the checkout
+    And I continue with first name "<first name>", last name "<last name>" and postal code "<postal code>"
+    Then I should see the checkout information page
+    And I should see the checkout error "<error>"
+
+    Examples:
+      | note                       | first name | last name | postal code | error                          |
+      | the first name is missing  |            | Lovelace  | 12345       | Error: First Name is required  |
+      | the last name is missing   | Ada        |           | 12345       | Error: Last Name is required   |
+      | the postal code is missing | Ada        | Lovelace  |             | Error: Postal Code is required |

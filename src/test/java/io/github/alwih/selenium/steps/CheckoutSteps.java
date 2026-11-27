@@ -50,6 +50,11 @@ public class CheckoutSteps {
         Assert.assertEquals(infoPage.title(), "Checkout: Your Information", "Checkout information page title");
     }
 
+    @Then("I should see the checkout error {string}")
+    public void shouldSeeCheckoutError(String error) {
+        Assert.assertEquals(new CheckoutInfoPage(DriverManager.get()).error(), error, "Checkout error");
+    }
+
     @Then("I should see the order overview")
     public void shouldSeeOverview() {
         CheckoutOverviewPage overviewPage = new CheckoutOverviewPage(DriverManager.get());
