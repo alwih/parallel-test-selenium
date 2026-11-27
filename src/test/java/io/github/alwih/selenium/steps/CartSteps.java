@@ -80,6 +80,13 @@ public class CartSteps {
         Assert.assertEquals(new InventoryPage(DriverManager.get()).cartCount(), count, "Cart badge (0 means no badge)");
     }
 
+    @Then("the cart should be empty")
+    public void cartShouldBeEmpty() {
+        CartPage cartPage = new CartPage(DriverManager.get());
+        Assert.assertEquals(cartPage.itemNames(), List.of(), "Products in the cart");
+        Assert.assertEquals(cartPage.cartCount(), 0, "Cart badge (0 means no badge)");
+    }
+
     @Then("the product page should offer to remove it from the cart")
     public void productPageShouldOfferRemove() {
         Assert.assertTrue(new ProductPage(DriverManager.get()).inCart(), "Product page shows Remove for a product in the cart");
