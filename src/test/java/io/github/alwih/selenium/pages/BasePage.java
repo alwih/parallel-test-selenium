@@ -35,6 +35,10 @@ public abstract class BasePage {
         return badge.isEmpty() ? 0 : Integer.parseInt(badge.get(0).getText());
     }
 
+    public void reload() {
+        driver.navigate().refresh();
+    }
+
     public CartPage openCart() {
         clickable(CART_LINK).click();
         return new CartPage(driver);

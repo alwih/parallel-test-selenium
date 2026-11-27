@@ -18,7 +18,7 @@ public class CartSteps {
     // name -> list price of what the scenario has added, in the order the cart shows them; Cucumber builds one instance per scenario
     private final Map<String, BigDecimal> added = new LinkedHashMap<>();
 
-    @When("I add the first {int} products to the cart")
+    @When("I add the first {int} product(s) to the cart")
     public void addFirstProductsToCart(int count) {
         InventoryPage inventoryPage = new InventoryPage(DriverManager.get());
         List<String> names = inventoryPage.productNames();
@@ -61,6 +61,11 @@ public class CartSteps {
     @When("I open the cart")
     public void openCart() {
         new InventoryPage(DriverManager.get()).openCart();
+    }
+
+    @When("I reload the page")
+    public void reloadPage() {
+        new InventoryPage(DriverManager.get()).reload();
     }
 
     @When("I continue shopping")

@@ -69,3 +69,36 @@ Feature: Cart
     And I continue shopping
     Then I should see the products page
     And the cart badge should show 2
+
+  @edge
+  Scenario: A new cart is empty
+    When I open the cart
+    Then I should see the cart page
+    And the cart badge should show 0
+    And the cart should list the products I added with their prices
+
+  @edge
+  Scenario: Removing the last product empties the cart
+    When I add the first 1 product to the cart
+    And I open the cart
+    And I remove the first added product from the cart page
+    Then the cart badge should show 0
+    And the cart should list the products I added with their prices
+
+  @edge
+  Scenario: The products page keeps the cart after a reload
+    When I add the first 2 products to the cart
+    And I reload the page
+    Then I should see the products page
+    And the cart badge should show 2
+    When I open the cart
+    Then the cart should list the products I added with their prices
+
+  @edge
+  Scenario: The cart page keeps the cart after a reload
+    When I add the first 2 products to the cart
+    And I open the cart
+    And I reload the page
+    Then I should see the cart page
+    And the cart badge should show 2
+    And the cart should list the products I added with their prices
