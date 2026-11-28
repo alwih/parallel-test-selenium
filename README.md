@@ -2,7 +2,7 @@
 
 A UI test project in Java that runs **Cucumber** scenarios in parallel on **TestNG** with Selenium WebDriver, built with **Maven**. The site under test is [SauceDemo](https://www.saucedemo.com), a demo shop made for test automation.
 
-Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login (a successful login, rejected logins, logout, and a page that needs a session) the product list (names and prices, sorting, and the product page) the cart (adding and removing products, keeping them across pages and reloads, and an empty cart) and the checkout (completing an order and checking its totals, required customer fields, and cancelling). Two known issues of the `problem_user` demo account are recorded as scenarios that fail on purpose and are left out of the default run. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time.
+Each scenario runs on its own TestNG thread with its own browser. A Cucumber hook starts the browser through `DriverManager`, which keeps one WebDriver per thread in a `ThreadLocal`, and quits it when the scenario ends, so scenarios never share a browser or depend on each other. Steps talk to the site through page objects that wait for elements explicitly. So far the scenarios cover login (a successful login, rejected logins, logout, and a page that needs a session) the product list (names and prices, sorting, and the product page) the cart (adding and removing products, keeping them across pages and reloads, and an empty cart) and the checkout (completing an order and checking its totals, required customer fields, and cancelling). Two known issues of the `problem_user` demo account are recorded as scenarios that fail on purpose and are left out of the default run. They run in Chrome, Firefox or Edge, with or without a visible window, and one extra suite runs all three browsers at the same time. Every run also writes Allure results: the steps of each scenario, and a screenshot and the page URL when one fails.
 
 ## Project Structure
 
@@ -11,13 +11,14 @@ parallel-test-selenium/
 ├── .mvn/wrapper/
 │   └── maven-wrapper.properties           # Maven version used by ./mvnw (3.10.0)
 ├── mvnw, mvnw.cmd                         # Maven wrapper scripts (macOS/Linux, Windows)
-├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Cucumber 8.0, Java 17
+├── pom.xml                                # Maven build: Selenium 4.52, TestNG 7.12, Cucumber 8.0, Allure 3.1, Java 17
 ├── testng.xml                             # Suite: config unit tests, then the Cucumber scenarios (4 at a time)
 ├── testng-cross-browser.xml               # Suite: the Cucumber scenarios in Chrome, Firefox and Edge at once (2 each)
 └── src/test/
     ├── resources/
     │   ├── config.properties              # Default run settings (browser, headless, site, wait timeout, password)
-    │   ├── cucumber.properties            # Cucumber defaults (summary output, no publish banner, tags left out of a default run)
+    │   ├── cucumber.properties            # Cucumber defaults (summary and Allure output, no publish banner, tags left out of a default run)
+    │   ├── allure.properties              # Where Allure writes its results (target/allure-results)
     │   └── features/
     │       ├── login.feature              # Login, rejected logins, logout, session check
     │       ├── inventory.feature          # Product list, sorting, product page (standard_user)
@@ -32,7 +33,7 @@ parallel-test-selenium/
         │   ├── DriverFactory.java         # Creates Chrome, Firefox or Edge (headless or not, 1366×768); resolves each browser's driver once
         │   └── DriverManager.java         # One WebDriver per thread (ThreadLocal): start, get, quit
         ├── hooks/
-        │   └── BrowserHooks.java          # Opens the browser the suite names before each scenario, logs one line, quits it after
+        │   └── BrowserHooks.java          # Opens the browser the suite names before each scenario, logs one line, attaches a screenshot and the URL when it failed, quits it after
         ├── pages/
         │   ├── BasePage.java              # Explicit waits (one element, all elements, clickable), the current URL path, the cart badge, open the cart, reload, read a price
         │   ├── LoginPage.java             # Login form: open, log in, read the error
@@ -200,6 +201,19 @@ Four at a time is about 1.7 times faster than one at a time for Chrome. The cros
 
 Every browser opens at 1366×768, headless or not, so pages lay out the same way in both modes. The after-scenario hook always runs and quits only a browser that actually started, so a browser that fails to start shows its real error.
 
+### Reports
+
+Every run writes [Allure](https://allurereport.org/) results to `target/allure-results`: one `*-result.json` per scenario, with its Gherkin steps as Allure steps, plus a few container files for the hooks. To read them as a report, install the [Allure command line](https://allurereport.org/docs/install/) and run:
+
+```bash
+allure serve target/allure-results
+```
+
+- **A failed scenario carries a screenshot and the page URL**, attached by the after-scenario hook (the report shows them under "Tear down"). A passing scenario has no attachments.
+- **Every result has a `browser` parameter** (`chrome`, `firefox` or `edge`), so in a cross-browser run the same scenario from each browser is its own entry in the report instead of three runs collapsed into one.
+- **Results pile up.** A run adds to `target/allure-results` and never clears it, so a report built after several runs mixes them. Run `./mvnw clean test` (clean deletes `target/`) to start from an empty folder.
+- **Results are written with `-Dcucumber.filter.tags` too**, so a partial run gives a partial report.
+
 ## What Gets Tested
 
 **Run settings** (`ConfigTest`, 6 unit tests, no browser): a `-D` option beats an environment variable, which beats `config.properties`; `base.url` is looked up as the env var `BASE_URL`; a missing setting fails with its name; and `config.properties` provides `headless`.
@@ -267,7 +281,8 @@ Opening a product as `problem_user` also misbehaves (often nothing happens, and 
 - **Scenarios at once**: `data-provider-thread-count` in [testng.xml](testng.xml). `-Ddataproviderthreadcount=N` overrides it for one run. In [testng-cross-browser.xml](testng-cross-browser.xml) it is per browser.
 - **Which suite runs**: `-Dsuite=testng-cross-browser.xml` (default `testng.xml`), set by the `suite` property in [pom.xml](pom.xml).
 - **Window size** is set in [DriverFactory.java](src/test/java/io/github/alwih/selenium/driver/DriverFactory.java).
-- **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties). The `cucumber.filter.tags` line there decides which tags a default run skips.
+- **Cucumber output**: the `cucumber.plugin` line in [cucumber.properties](src/test/resources/cucumber.properties) lists the console summary and the Allure plugin. The `cucumber.filter.tags` line there decides which tags a default run skips.
+- **Allure results folder**: the `allure.results.directory` line in [allure.properties](src/test/resources/allure.properties). Without that file Allure writes to `allure-results/` in the project root.
 
 ## Troubleshooting
 
@@ -286,6 +301,12 @@ Opening a product as `problem_user` also misbehaves (often nothing happens, and 
 **Warning `Unable to find an exact match for CDP version ...`?**
 - The installed Chrome is newer than the Selenium release. These tests don't use Chrome DevTools, so it's harmless.
 
+**Warning `SLF4J(W): No SLF4J providers were found` at the start of a run?**
+- Allure logs through SLF4J and the project has no logging library, so SLF4J falls back to a no-op logger. It is harmless.
+
+**The Allure report shows scenarios from an earlier run?**
+- Allure results are never cleared by a normal run. Run `./mvnw clean test` to delete `target/` first.
+
 **`IllegalStateException: Missing setting 'x'`?**
 - The code asked for a setting that isn't in `config.properties` and wasn't passed as `-Dx=...` or an environment variable. Add it to the file or pass it on the command line.
 
@@ -303,7 +324,6 @@ Opening a product as `problem_user` also misbehaves (often nothing happens, and 
 
 ## Next Steps
 
-- Allure reports with a screenshot of each failure
 - Run the browsers on a Selenium Grid in Docker
 - Run the tests in GitHub Actions on every pull request and every night
 
@@ -319,6 +339,7 @@ Opening a product as `problem_user` also misbehaves (often nothing happens, and 
 - [Cucumber with TestNG](https://github.com/cucumber/cucumber-jvm/tree/main/cucumber-testng) (running scenarios in parallel)
 - [TestNG Documentation](https://testng.org/) (see the sections on parallel running and data providers)
 - [Maven Surefire with TestNG](https://maven.apache.org/surefire/maven-surefire-plugin/examples/testng.html)
+- [Allure Report](https://allurereport.org/docs/) (reading the results, the command line)
 - [Maven Wrapper](https://maven.apache.org/tools/wrapper/)
 - [Setting `--release` in the Maven Compiler Plugin](https://maven.apache.org/plugins/maven-compiler-plugin/examples/set-compiler-release.html)
 - [Java `ThreadLocal`](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ThreadLocal.html)
