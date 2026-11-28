@@ -5,6 +5,8 @@ import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import io.github.alwih.selenium.config.Config;
 import io.github.alwih.selenium.driver.DriverManager;
+import io.qameta.allure.Allure;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.ITestResult;
@@ -17,7 +19,9 @@ public class BrowserHooks {
     @Before
     public void openBrowser() {
         start = System.currentTimeMillis();
-        DriverManager.start(browser());
+        String browser = browser();
+        DriverManager.start(browser);
+        Allure.parameter("browser", browser);
     }
 
     // Each <test> in testng-cross-browser.xml names its browser; the default suite has no parameter and uses Config
@@ -30,16 +34,23 @@ public class BrowserHooks {
     @After
     public void quitBrowser(Scenario scenario) {
         WebDriver driver = DriverManager.get();
-        if (driver != null) {
-            RemoteWebDriver remote = (RemoteWebDriver) driver;
-            System.out.printf("[%s] %s %s thread=%s session=%s %d ms%n",
-                    remote.getCapabilities().getBrowserName(),
-                    scenario.isFailed() ? "FAILED" : "PASSED",
-                    scenario.getName(),
-                    Thread.currentThread().getName(),
-                    remote.getSessionId(),
-                    System.currentTimeMillis() - start);
+        try {
+            if (driver != null) {
+                RemoteWebDriver remote = (RemoteWebDriver) driver;
+                System.out.printf("[%s] %s %s thread=%s session=%s %d ms%n",
+                        remote.getCapabilities().getBrowserName(),
+                        scenario.isFailed() ? "FAILED" : "PASSED",
+                        scenario.getName(),
+                        Thread.currentThread().getName(),
+                        remote.getSessionId(),
+                        System.currentTimeMillis() - start);
+                if (scenario.isFailed()) {
+                    scenario.attach(remote.getScreenshotAs(OutputType.BYTES), "image/png", "Screenshot");
+                    scenario.attach(remote.getCurrentUrl(), "text/plain", "URL");
+                }
+            }
+        } finally {
+            DriverManager.quit();
         }
-        DriverManager.quit();
     }
 }
