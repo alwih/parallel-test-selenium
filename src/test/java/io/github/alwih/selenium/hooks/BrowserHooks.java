@@ -5,6 +5,7 @@ import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import io.github.alwih.selenium.config.Config;
 import io.github.alwih.selenium.driver.DriverManager;
+import io.qameta.allure.Allure;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -18,7 +19,9 @@ public class BrowserHooks {
     @Before
     public void openBrowser() {
         start = System.currentTimeMillis();
-        DriverManager.start(browser());
+        String browser = browser();
+        DriverManager.start(browser);
+        Allure.parameter("browser", browser);
     }
 
     // Each <test> in testng-cross-browser.xml names its browser; the default suite has no parameter and uses Config
