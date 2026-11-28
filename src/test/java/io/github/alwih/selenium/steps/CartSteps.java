@@ -8,15 +8,17 @@ import io.github.alwih.selenium.pages.InventoryPage;
 import io.github.alwih.selenium.pages.ProductPage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.testng.Assert;
 
 public class CartSteps {
 
-    // name -> list price of what the scenario has added, in the order the cart shows them; Cucumber builds one instance per scenario
-    private final Map<String, BigDecimal> added = new LinkedHashMap<>();
+    private final Map<String, BigDecimal> added;
+
+    public CartSteps(ScenarioCart cart) {
+        this.added = cart.added;
+    }
 
     @When("I add the first {int} product(s) to the cart")
     public void addFirstProductsToCart(int count) {
@@ -76,6 +78,13 @@ public class CartSteps {
     @Then("the cart badge should show {int}")
     public void cartBadgeShouldShow(int count) {
         Assert.assertEquals(new InventoryPage(DriverManager.get()).cartCount(), count, "Cart badge (0 means no badge)");
+    }
+
+    @Then("the cart should be empty")
+    public void cartShouldBeEmpty() {
+        CartPage cartPage = new CartPage(DriverManager.get());
+        Assert.assertEquals(cartPage.itemNames(), List.of(), "Products in the cart");
+        Assert.assertEquals(cartPage.cartCount(), 0, "Cart badge (0 means no badge)");
     }
 
     @Then("the product page should offer to remove it from the cart")

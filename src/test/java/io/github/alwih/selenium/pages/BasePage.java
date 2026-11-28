@@ -1,6 +1,7 @@
 package io.github.alwih.selenium.pages;
 
 import io.github.alwih.selenium.config.Config;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -49,6 +50,10 @@ public abstract class BasePage {
                 .filter(item -> item.findElement(ITEM_NAME).getText().equals(name))
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("No product named " + name));
+    }
+
+    protected BigDecimal parsePrice(String text) {
+        return new BigDecimal(text.substring(1));
     }
 
     protected WebElement visible(By locator) {

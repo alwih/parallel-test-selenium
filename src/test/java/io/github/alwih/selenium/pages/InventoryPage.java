@@ -30,7 +30,9 @@ public class InventoryPage extends BasePage {
         driver.get(Config.get("base.url") + "/inventory.html");
     }
 
+    // the URL changes before the page renders and the previous page's title lingers (checkout pages share the data-test), so wait for the sort menu first
     public String title() {
+        visible(SORT);
         return visible(TITLE).getText();
     }
 
@@ -39,7 +41,7 @@ public class InventoryPage extends BasePage {
     }
 
     public List<BigDecimal> productPrices() {
-        return all(ITEM_PRICE).stream().map(price -> new BigDecimal(price.getText().substring(1))).toList();
+        return all(ITEM_PRICE).stream().map(price -> parsePrice(price.getText())).toList();
     }
 
     public List<String> productImages() {

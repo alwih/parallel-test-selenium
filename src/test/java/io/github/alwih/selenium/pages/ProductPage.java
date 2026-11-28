@@ -23,7 +23,7 @@ public class ProductPage extends BasePage {
     }
 
     public BigDecimal price() {
-        return new BigDecimal(visible(PRICE).getText().substring(1));
+        return parsePrice(visible(PRICE).getText());
     }
 
     public void addToCart() {
